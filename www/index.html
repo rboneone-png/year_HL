@@ -214,6 +214,17 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .ptable th { font-weight: 500; color: var(--muted); font-size: 12px; }
 .yybar { height: 10px; border-radius: 5px; background: var(--surface2); border: 1px solid var(--line); overflow: hidden; }
 .yybar i { display: block; height: 100%; background: var(--accent); }
+.synth h3 { font-size: 16px; margin-bottom: 8px; }
+.synth p { margin: 0 0 8px; font-size: 14px; }
+.synth p:last-child { margin-bottom: 0; }
+.alloc { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 8px 0; }
+.alloc div { border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface2); }
+.alloc small { display: block; font-size: 11px; color: var(--muted); }
+.alloc b { font-family: var(--font-display); font-size: 17px; }
+.dayl { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.dayl span { font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface2); }
+.dayl .g { color: var(--w0); border-color: var(--w0); }
+.dayl .r { color: var(--w4); border-color: var(--w4); }
 @media (max-width: 420px) {
   .detail-grid { grid-template-columns: 1fr; }
   .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
@@ -246,6 +257,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   </section>
 
   <section class="card hero" id="hero" aria-live="polite"></section>
+  <section class="card synth" id="synth" aria-live="polite"></section>
 
   <section id="body"></section>
 
@@ -757,9 +769,44 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       [["gz", "干支五行"], ["yy", "陰陽"], ["gua", "卦象"], ["he", "河洛"], ["stk", "股市"]].map(function (t) { return '<button data-dtab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>' + body;
   }
 
+  /* ---------- 綜合解讀：把四部分術數融入操作建議 ---------- */
+  var ALLOC = [
+    { eq: "50–60%", cash: "20% 以上", act: "順風期，可依計畫分批布局，每次進場不超過計畫的三分之一。" },
+    { eq: "40–50%", cash: "25% 以上", act: "偏多期，可小幅加碼，拉回再買，不追急漲。" },
+    { eq: "30–40%", cash: "30% 以上", act: "拉鋸期，維持原部位，不追高也不急著殺低。" },
+    { eq: "20–30%", cash: "40% 以上", act: "逆風期，縮小新增部位，反彈時優先調節。" },
+    { eq: "10–20%", cash: "50% 以上", act: "壓力期，先保本，暫停槓桿與追價，等轉折再動。" }
+  ];
+  var PHRASE = { base: ["五行生剋順風", "五行生剋逆風"], gua: ["卦象體用偏吉", "卦象體用偏凶"], he: ["流年、流月星曜相助", "流年、流月星曜相阻"], yy: ["陰陽氣勢相合", "陰陽氣勢相逆"] };
+  function renderSynth() {
+    var sec = sector(), items = [], days, scope, pt, avg;
+    if (state.view === "year") {
+      days = []; for (var m = 1; m <= 12; m++) { var dm = monthDays(state.sel.y, m); days = days.concat(dm); items.push({ l: m + " 月", s: avgDays(dm) }); }
+      scope = "全年";
+    } else {
+      days = state.view === "month" ? monthDays(state.sel.y, state.sel.m) : weekDays(state.sel);
+      days.forEach(function (x) { if (!x.off) items.push({ l: x.m + "/" + x.d + "（" + WD[x.dow] + "）", s: x.score }); });
+      scope = state.view === "month" ? "本月" : "本週";
+    }
+    pt = avgParts(days); avg = avgDays(days);
+    var lv = level(avg), A = ALLOC[lv], L = LEVELS[lv];
+    var drivers = PART_NAMES.map(function (k) { return { k: k[0], n: k[1], v: pt[k[0]] }; }).filter(function (d) { return Math.abs(d.v) >= 0.05; })
+      .sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); }).slice(0, 2);
+    var why = drivers.length ? drivers.map(function (d) { return PHRASE[d.k][d.v > 0 ? 0 : 1] + "（" + d.n + " " + sgn(d.v) + "）"; }).join("、") : "四部分都接近中性，沒有明顯的單一推力";
+    var asc = items.slice().sort(function (a, b) { return b.s - a.s; });
+    var good = asc.slice(0, 3).filter(function (i) { return i.s >= 0.3; }), bad = asc.slice().reverse().slice(0, 3).filter(function (i) { return i.s <= -0.25; });
+    var pick = function (arr, cls) { return arr.length ? arr.map(function (i) { return '<span class="' + cls + ' num">' + i.l + ' ' + sgn(i.s) + '</span>'; }).join("") : '<span>無明顯日子</span>'; };
+    $("synth").innerHTML = '<h3>綜合解讀 · ' + scope + '</h3>' +
+      '<p><b>' + L.k + '（' + L.sub + '）</b>：' + why + '。</p>' +
+      '<div class="alloc"><div><small>' + sec.name + ' 占權益部位</small><b>' + A.eq + '</b></div><div><small>現金水位</small><b>' + A.cash + '</b></div></div>' +
+      '<p>' + A.act + '進出皆分批，並先設好停損。</p>' +
+      '<p style="margin-bottom:2px">' + (state.view === "year" ? "較強的月份" : "加碼參考") + '</p><div class="dayl">' + pick(good, "g") + '</div>' +
+      '<p style="margin:8px 0 2px">' + (state.view === "year" ? "較弱的月份" : "減碼或觀望") + '</p><div class="dayl">' + pick(bad, "r") + '</div>';
+  }
   function render() {
     renderControls();
     if (state.view === "year") viewYear(); else if (state.view === "week") viewWeek(); else viewMonth();
+    renderSynth();
     var atMin = state.sel.y <= MIN_Y && (state.view === "year" || (state.view === "month" && state.sel.m === 1) || (state.view === "week" && weekDays(state.sel)[0].y < MIN_Y));
     $("prev").disabled = prevTarget() === null;
     $("next").disabled = nextTarget() === null;
