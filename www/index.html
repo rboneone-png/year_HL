@@ -1,0 +1,473 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>河洛數理投資</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#26408b">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap">
+<style>
+/* Layout: one narrow column app. Control bar on top, a weather summary card, then a year / month / week body and a day detail card. */
+:root {
+  --bg: #eff1f4;
+  --surface: #ffffff;
+  --surface2: #f5f6f9;
+  --ink: #1b2230;
+  --muted: #5a6477;
+  --line: #d8dce5;
+  --accent: #26408b;
+  --accent-ink: #ffffff;
+  --wood: #2c8a57;
+  --fire: #d4452a;
+  --earth: #a97a1f;
+  --metal: #6b7a90;
+  --water: #2a68b0;
+  --w0: #178a5c;
+  --w1: #6a9a2e;
+  --w2: #7b8496;
+  --w3: #c97d1c;
+  --w4: #c93b3b;
+  --font-display: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151c; --surface: #1a1f2a; --surface2: #212736; --ink: #e8ebf2; --muted: #9aa4b8; --line: #2c3444;
+    --accent: #93a8f2; --accent-ink: #10162b;
+    --wood: #55c088; --fire: #f2745a; --earth: #d9ab4a; --metal: #9aa8bd; --water: #6aa5ea;
+    --w0: #3ccf93; --w1: #98c85a; --w2: #98a1b3; --w3: #ebA24a; --w4: #f06a6a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151c; --surface: #1a1f2a; --surface2: #212736; --ink: #e8ebf2; --muted: #9aa4b8; --line: #2c3444;
+  --accent: #93a8f2; --accent-ink: #10162b;
+  --wood: #55c088; --fire: #f2745a; --earth: #d9ab4a; --metal: #9aa8bd; --water: #6aa5ea;
+  --w0: #3ccf93; --w1: #98c85a; --w2: #98a1b3; --w3: #eba24a; --w4: #f06a6a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-block: 12px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+header.top h1 { font-size: 24px; letter-spacing: .04em; }
+header.top .sub { color: var(--muted); font-size: 12px; letter-spacing: .06em; }
+
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--surface2); border: 1px solid var(--line); border-radius: var(--radius); padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; padding: 8px 0; border-radius: 8px; font-weight: 500; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.sectors { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.sectors::-webkit-scrollbar { display: none; }
+.chip { flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 12px; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; display: block; background: var(--c); }
+.chip[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nav button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-size: 18px; line-height: 1; }
+.nav button:disabled { opacity: .35; cursor: default; }
+.nav .label { text-align: center; flex: 1; min-width: 0; }
+.nav .label b { font-family: var(--font-display); font-size: 19px; display: block; }
+.nav .label span { font-size: 12px; color: var(--muted); }
+.nav .today { font-size: 12px; width: auto; padding: 0 12px; border-radius: 999px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; min-width: 0; }
+.hero { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; border-left: 5px solid var(--wc, var(--line)); }
+.hero .ico { width: 64px; height: 64px; color: var(--wc); }
+.hero h2 { font-size: 24px; line-height: 1.25; }
+.hero .ttl { display: block; font-family: var(--font-body); font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: .04em; }
+#body { display: flex; flex-direction: column; gap: 14px; }
+.hero h2 small { font-family: var(--font-body); font-weight: 500; font-size: 13px; color: var(--muted); margin-left: 6px; }
+.hero p { margin: 4px 0 0; font-size: 14px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tag { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--line); color: var(--muted); }
+.tag.warn { color: var(--w3); border-color: var(--w3); }
+
+.sectionhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.sectionhead h3 { font-size: 16px; }
+.sectionhead span { font-size: 12px; color: var(--muted); }
+
+/* year */
+.chartwrap { overflow-x: auto; }
+svg.chart { display: block; width: 100%; min-width: 320px; height: auto; }
+svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
+.months { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.mcell { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 10px; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; border-top: 3px solid var(--wc); }
+.mcell b { font-family: var(--font-display); font-size: 16px; }
+.mcell .ico { width: 30px; height: 30px; color: var(--wc); grid-row: span 2; }
+.mcell small { color: var(--muted); font-size: 12px; }
+.mcell[aria-current="true"] { box-shadow: 0 0 0 2px var(--accent); }
+
+/* month */
+.dow, .grid7 { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.dow span { text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 4px; }
+.dcell { position: relative; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 4px 2px 6px; display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 66px; border-bottom: 3px solid var(--wc); }
+.dcell .d { font-size: 13px; font-weight: 500; }
+.dcell .ico { width: 22px; height: 22px; color: var(--wc); }
+.dcell .gz { font-size: 11px; color: var(--muted); letter-spacing: 0; }
+.dcell.off { background: var(--surface2); }
+.dcell.off .ico { opacity: .45; }
+.dcell.pad { visibility: hidden; border: 0; }
+.dcell.sel { box-shadow: 0 0 0 2px var(--accent); }
+.dcell.today .d::after { content: "·"; color: var(--accent); font-weight: 700; }
+.jie { font-size: 10px; color: var(--accent); line-height: 1.1; }
+
+/* week */
+.wlist { display: flex; flex-direction: column; gap: 6px; }
+.wrow { display: grid; grid-template-columns: 56px 30px 1fr 56px; gap: 10px; align-items: center; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 8px 10px; text-align: left; width: 100%; }
+.wrow.sel { box-shadow: 0 0 0 2px var(--accent); }
+.wrow.off { background: var(--surface2); }
+.wrow .dd b { display: block; font-size: 14px; }
+.wrow .dd span { font-size: 12px; color: var(--muted); }
+.wrow .ico { width: 28px; height: 28px; color: var(--wc); }
+.bar { height: 8px; border-radius: 4px; background: var(--surface2); position: relative; overflow: hidden; border: 1px solid var(--line); }
+.bar::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.bar i { position: absolute; top: 0; bottom: 0; background: var(--wc); }
+.wrow .lv { font-size: 12px; text-align: right; color: var(--wc); font-weight: 700; }
+.wrow .gzt { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* detail */
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.pillar { text-align: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px 4px; background: var(--surface2); }
+.pillar small { display: block; font-size: 11px; color: var(--muted); }
+.pillar .gz { font-family: var(--font-display); font-size: 22px; line-height: 1.2; }
+.pillar .gz span { display: inline-block; }
+.el-wood { color: var(--wood); } .el-fire { color: var(--fire); } .el-earth { color: var(--earth); } .el-metal { color: var(--metal); } .el-water { color: var(--water); }
+.detail-grid { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: start; }
+.luo { display: grid; grid-template-columns: repeat(3, 30px); grid-template-rows: repeat(3, 30px); gap: 2px; }
+.luo span { display: grid; place-items: center; font-size: 13px; border-radius: 5px; background: var(--surface2); color: var(--muted); border: 1px solid var(--line); }
+.luo span.hit { background: var(--c); color: var(--accent-ink); border-color: var(--c); font-weight: 700; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend svg { width: 16px; height: 16px; }
+.note { font-size: 12px; color: var(--muted); }
+@media (max-width: 420px) {
+  .detail-grid { grid-template-columns: 1fr; }
+  .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card, .dcell, .wrow, .mcell { transition: box-shadow .15s; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <h1>河洛數理投資</h1>
+    <span class="sub">國曆 · 投資氣象</span>
+  </header>
+
+  <section class="controls" aria-label="檢視設定">
+    <div class="seg" role="group" aria-label="檢視範圍">
+      <button id="v-year" data-view="year" aria-pressed="false">年</button>
+      <button id="v-month" data-view="month" aria-pressed="true">月</button>
+      <button id="v-week" data-view="week" aria-pressed="false">週</button>
+    </div>
+    <div class="sectors" id="sectors" role="group" aria-label="投資主題"></div>
+    <div class="nav">
+      <button id="prev" aria-label="上一期">‹</button>
+      <div class="label"><b id="navTitle"></b><span id="navSub"></span></div>
+      <button id="todayBtn" class="today" aria-label="回到今天">今天</button>
+      <button id="next" aria-label="下一期">›</button>
+    </div>
+  </section>
+
+  <section class="card hero" id="hero" aria-live="polite"></section>
+
+  <section id="body"></section>
+
+  <section class="card" id="detail"></section>
+
+  <section class="card">
+    <div class="sectionhead"><h3>氣象圖例</h3><span>依所選主題的五行計算</span></div>
+    <div class="legend" id="legend"></div>
+    <p class="note" style="margin:10px 0 0">以國曆日期換算節氣月與干支：年柱依立春、月柱依十二節、日柱依當日。分數由天干地支五行對所選主題的生剋關係加權而成，另計六沖與九運（2024–2043 離火運）背景。這是象徵性的術數參考，不是投資建議，也不保證報酬。實際投資請搭配基本面、技術面與個人風險承受度，不要重押或借錢投資。</p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  /* ---------- 干支與節氣資料 ---------- */
+  var JIE = {"2023":[[5,23,4],[4,10,42],[6,4,36],[5,9,13],[6,2,18],[6,6,18],[7,16,30],[8,2,22],[8,5,26],[8,21,15],[8,0,35],[7,17,32]],"2024":[[6,4,49],[4,16,27],[5,10,22],[4,15,2],[5,8,10],[5,12,9],[6,22,20],[7,8,9],[7,11,11],[8,2,59],[7,6,20],[6,23,17]],"2025":[[5,10,32],[3,22,10],[5,16,7],[4,20,48],[5,13,57],[5,17,56],[7,4,4],[7,13,51],[7,16,51],[8,8,41],[7,12,4],[7,5,4]],"2026":[[5,16,23],[4,4,2],[5,21,59],[5,2,40],[5,19,48],[5,23,48],[7,9,56],[7,19,42],[7,22,41],[8,14,29],[7,17,52],[7,10,52]],"2027":[[5,22,9],[4,9,46],[6,3,39],[5,8,17],[6,1,25],[6,5,25],[7,15,37],[8,1,26],[8,4,28],[8,20,17],[7,23,38],[7,16,37]],"2028":[[6,3,54],[4,15,31],[5,9,24],[4,14,3],[5,7,12],[5,11,16],[6,21,30],[7,7,21],[7,10,22],[8,2,8],[7,5,27],[6,22,24]],"2029":[[5,9,41],[3,21,20],[5,15,17],[4,19,58],[5,13,7],[5,17,9],[7,3,22],[7,13,11],[7,16,11],[8,7,58],[7,11,16],[7,4,13]],"2030":[[5,15,30],[4,3,8],[5,21,3],[5,1,41],[5,18,46],[5,22,44],[7,8,55],[7,18,47],[7,21,52],[8,13,45],[7,17,8],[7,10,7]],"2031":[[5,21,23],[4,8,58],[6,2,51],[5,7,28],[6,0,35],[6,4,35],[7,14,48],[8,0,42],[8,3,50],[8,19,42],[7,23,5],[7,16,2]],"2032":[[6,3,16],[4,14,48],[5,8,40],[4,13,17],[5,6,25],[5,10,27],[6,20,40],[7,6,32],[7,9,37],[8,1,30],[7,4,54],[6,21,53]],"2033":[[5,9,8],[3,20,41],[5,14,32],[4,19,8],[5,12,13],[5,16,13],[7,2,24],[7,12,15],[7,15,20],[8,7,13],[7,10,41],[7,3,44]],"2034":[[5,15,4],[4,2,41],[5,20,32],[5,1,6],[5,18,9],[5,22,6],[7,8,17],[7,18,9],[7,21,13],[8,13,7],[7,16,33],[7,9,36]],"2035":[[5,20,55],[4,8,31],[6,2,21],[5,6,53],[5,23,54],[6,3,50],[7,14,1],[7,23,54],[8,3,2],[8,18,57],[7,22,23],[7,15,25]],"2036":[[6,2,43],[4,14,19],[5,8,11],[4,12,46],[5,5,49],[5,9,47],[6,19,57],[7,5,48],[7,8,55],[8,0,49],[7,4,14],[6,21,16]],"2037":[[5,8,34],[3,20,11],[5,14,6],[4,18,44],[5,11,49],[5,15,46],[7,1,55],[7,11,43],[7,14,45],[8,6,37],[7,10,4],[7,3,7]]};
+  var MIN_Y = 2024, MAX_Y = 2036;
+  var GAN = "甲乙丙丁戊己庚辛壬癸".split("");
+  var ZHI = "子丑寅卯辰巳午未申酉戌亥".split("");
+  var GAN_EL = [0,0,1,1,2,2,3,3,4,4];            // 木0 火1 土2 金3 水4
+  var ZHI_EL = [4,2,0,0,2,1,1,2,3,3,2,4];
+  var EL = ["木","火","土","金","水"];
+  var EL_CLS = ["wood","fire","earth","metal","water"];
+  var EL_VAR = ["--wood","--fire","--earth","--metal","--water"];
+  var HETU = ["3 · 8","2 · 7","5 · 10","4 · 9","1 · 6"];
+  var LUO = [[4,9,2],[3,5,7],[8,1,6]];
+  var LUO_EL = {1:4,2:2,3:0,4:0,5:2,6:3,7:3,8:2,9:1};
+  var JIE_NAMES = ["小寒","立春","驚蟄","清明","立夏","芒種","小暑","立秋","白露","寒露","立冬","大雪"];
+  var SECTORS = [
+    { id: "tech", el: 1, name: "科技 · AI", ind: "半導體、AI 與軟體、光電、能源與傳媒" },
+    { id: "bio",  el: 0, name: "生技 · 綠能", ind: "生技醫療、綠能環保、教育、紡織造紙" },
+    { id: "prop", el: 2, name: "營建 · 資產", ind: "營建不動產、水泥、農業、公用事業" },
+    { id: "fin",  el: 3, name: "金融 · 機械", ind: "銀行保險、機械、汽車零組件、鋼鐵軍工" },
+    { id: "ship", el: 4, name: "航運 · 流動", ind: "航運物流、貿易、旅遊、飲料與流動性題材" }
+  ];
+  var LEVELS = [
+    { k: "晴",     sub: "進攻",   adv: "格局順風，可依計畫分批布局，仍保留現金。" },
+    { k: "晴時多雲", sub: "偏攻",   adv: "條件偏佳，可小幅加碼，進場分批且設停損。" },
+    { k: "多雲",   sub: "平衡",   adv: "多空拉鋸，維持原部位，不追高也不急著殺低。" },
+    { k: "陰雨",   sub: "偏守",   adv: "逆風增加，縮小新增部位，提高現金比重。" },
+    { k: "雷雨",   sub: "防守",   adv: "波動與壓力大，優先控管風險，避免追價與槓桿。" }
+  ];
+  var LV_VAR = ["--w0","--w1","--w2","--w3","--w4"];
+  var WD = ["日","一","二","三","四","五","六"];
+
+  /* ---------- 曆法計算 ---------- */
+  function jieTime(y, m) { var r = JIE[y][m - 1]; return Date.UTC(y, m - 1, r[0], r[1], r[2]); }   // 以國曆（東八區）時分比較
+  function dayNumber(y, m, d) { return Math.floor(Date.UTC(y, m - 1, d) / 86400000); }
+  function dayGZ(y, m, d) { return ((dayNumber(y, m, d) - dayNumber(2000, 1, 1) + 54) % 60 + 60) % 60; }
+  function pillars(y, m, d) {
+    var t = Date.UTC(y, m - 1, d, 12, 0);
+    var jm = t >= jieTime(y, m) ? m : m - 1;           // 已過本月之節則用本月，否則沿用上個月
+    var jy = y;
+    if (jm === 0) { jm = 12; jy = y - 1; }
+    var br = ((jm - 2) % 12 + 12) % 12;                // 寅 = 0
+    var yy = t >= jieTime(y, 2) ? y : y - 1;
+    var ys = ((yy - 4) % 10 + 10) % 10, yb = ((yy - 4) % 12 + 12) % 12;
+    var ms = ((ys % 5) * 2 + 2 + br) % 10, mb = (br + 2) % 12;
+    var dg = dayGZ(y, m, d);
+    return { y: [ys, yb], m: [ms, mb], d: [dg % 10, dg % 12], yy: yy, jie: jm };
+  }
+  function jieOn(y, m, d) {                              // 當日是否為節
+    var r = JIE[y][m - 1];
+    return r[0] === d ? JIE_NAMES[m - 1] : "";
+  }
+
+  /* ---------- 氣象評分 ---------- */
+  function rel(p, s) {                                  // p = 當期五行，s = 主題五行
+    if (p === s) return 1;
+    if ((p + 1) % 5 === s) return 2;                    // 生我
+    if ((s + 1) % 5 === p) return -0.5;                 // 我生（洩）
+    if ((p + 2) % 5 === s) return -2;                   // 剋我
+    return 0;                                           // 我剋（財）
+  }
+  function pillarScore(pl, s) { return 0.4 * rel(GAN_EL[pl[0]], s) + 0.6 * rel(ZHI_EL[pl[1]], s); }
+  var CHONG = function (a, b) { return Math.abs(a - b) === 6; };
+  function evalDay(y, m, d, sec) {
+    var s = sec.el, p = pillars(y, m, d);
+    var sc = 0.25 * pillarScore(p.y, s) + 0.45 * pillarScore(p.m, s) + 0.30 * pillarScore(p.d, s);
+    var tags = [];
+    if (CHONG(p.d[1], p.m[1])) { sc -= 0.3; tags.push("日月相沖"); }
+    if (s === 1 && y >= 2024 && y <= 2043) sc += 0.3;
+    var same = 0;
+    [p.y, p.m, p.d].forEach(function (pl) { if (GAN_EL[pl[0]] === s) same++; if (ZHI_EL[pl[1]] === s) same++; });
+    if (same >= 4) { sc -= 0.3; tags.push("五行過旺，防過熱"); }
+    return { p: p, score: sc, lv: level(sc), tags: tags, y: y, m: m, d: d, dow: new Date(Date.UTC(y, m - 1, d)).getUTCDay() };
+  }
+  function level(s) { return s >= 0.8 ? 0 : s >= 0.3 ? 1 : s >= -0.25 ? 2 : s >= -0.75 ? 3 : 4; }
+  function avgDays(days) {
+    var t = days.filter(function (x) { return x.dow > 0 && x.dow < 6; });
+    if (!t.length) t = days;
+    var sum = 0; t.forEach(function (x) { sum += x.score; });
+    return sum / t.length;
+  }
+  function gzStr(pl) { return GAN[pl[0]] + ZHI[pl[1]]; }
+  function pillarHTML(label, pl) {
+    return '<div class="pillar"><small>' + label + '</small><div class="gz"><span class="el-' + EL_CLS[GAN_EL[pl[0]]] + '">' + GAN[pl[0]] + '</span><span class="el-' + EL_CLS[ZHI_EL[pl[1]]] + '">' + ZHI[pl[1]] + '</span></div></div>';
+  }
+
+  /* ---------- 圖示 ---------- */
+  var SVGS = [
+    '<circle cx="12" cy="12" r="4.2" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></g>',
+    '<circle cx="8.5" cy="8.5" r="3.2" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8.5 2v1.6M2 8.5h1.6M3.9 3.9l1.1 1.1M13.1 3.9L12 5"/></g><path d="M9 20h8.5a3.5 3.5 0 0 0 .4-6.97A5 5 0 0 0 8.4 14.4 2.9 2.9 0 0 0 9 20z" fill="currentColor" opacity=".85"/>',
+    '<path d="M7 19h10.5a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.3 12.4 3.4 3.4 0 0 0 7 19z" fill="currentColor"/>',
+    '<path d="M7 14h10.5a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.3 7.4 3.4 3.4 0 0 0 7 14z" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3"/></g>',
+    '<path d="M7 13h10.5a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.3 6.4 3.4 3.4 0 0 0 7 13z" fill="currentColor"/><path d="M12.8 12.5 9.6 17.3h2.6l-1 4.2 4-5.6h-2.7z" fill="currentColor"/>'
+  ];
+  function ico(l, cls) { return '<svg class="ico ' + (cls || "") + '" viewBox="0 0 24 24" aria-hidden="true">' + SVGS[l] + '</svg>'; }
+
+  /* ---------- 狀態 ---------- */
+  var now = new Date();
+  var todayKey = { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
+  function clampDate(o) {
+    if (o.y < MIN_Y) return { y: MIN_Y, m: 1, d: 1 };
+    if (o.y > MAX_Y) return { y: MAX_Y, m: 12, d: 31 };
+    return o;
+  }
+  var state = { view: "month", sector: "tech", sel: clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }) };
+  try {
+    var saved = JSON.parse(localStorage.getItem("hl-state") || "{}");
+    if (saved.view) state.view = saved.view;
+    if (saved.sector && SECTORS.some(function (s) { return s.id === saved.sector; })) state.sector = saved.sector;
+  } catch (e) {}
+  function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector })); } catch (e) {} }
+  function sector() { return SECTORS.filter(function (s) { return s.id === state.sector; })[0]; }
+  function dim(y, m) { return new Date(y, m, 0).getDate(); }
+  function monthDays(y, m) { var a = [], n = dim(y, m), sec = sector(); for (var d = 1; d <= n; d++) a.push(evalDay(y, m, d, sec)); return a; }
+  function weekDays(o) {
+    var base = new Date(o.y, o.m - 1, o.d); base.setDate(base.getDate() - base.getDay());
+    var a = [], sec = sector();
+    for (var i = 0; i < 7; i++) { var t = new Date(base); t.setDate(base.getDate() + i); a.push(evalDay(t.getFullYear(), t.getMonth() + 1, t.getDate(), sec)); }
+    return a;
+  }
+  function inRange(y) { return y >= MIN_Y && y <= MAX_Y; }
+  function $(id) { return document.getElementById(id); }
+  function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+  function sameDay(a, b) { return a.y === b.y && a.m === b.m && a.d === b.d; }
+  function style(l) { return ' style="--wc: var(' + LV_VAR[l] + ')"'; }
+
+  /* ---------- 繪製 ---------- */
+  function renderControls() {
+    ["year", "month", "week"].forEach(function (v) { $("v-" + v).setAttribute("aria-pressed", state.view === v ? "true" : "false"); });
+    $("sectors").innerHTML = SECTORS.map(function (s) {
+      return '<button class="chip" data-sec="' + s.id + '" aria-pressed="' + (state.sector === s.id) + '" style="--c: var(' + EL_VAR[s.el] + ')"><i></i>' + s.name + '<span class="el-' + EL_CLS[s.el] + '">' + EL[s.el] + '</span></button>';
+    }).join("");
+    $("legend").innerHTML = LEVELS.map(function (l, i) { return '<span style="color: var(' + LV_VAR[i] + ')">' + ico(i) + '<span style="color: var(--ink)">' + l.k + '（' + l.sub + '）</span></span>'; }).join("");
+  }
+
+  function renderHero(title, sub, avg, extra) {
+    var lv = level(avg), L = LEVELS[lv];
+    var sec = sector();
+    $("hero").style.setProperty("--wc", "var(" + LV_VAR[lv] + ")");
+    $("hero").innerHTML = ico(lv) +
+      '<div><h2><span class="ttl">' + title + '</span>' + L.k + '<small>' + L.sub + ' · 指數 <span class="num">' + (avg >= 0 ? "+" : "") + avg.toFixed(2) + '</span></small></h2>' +
+      '<p>' + L.adv + '</p>' +
+      '<div class="tags"><span class="tag">主題：' + sec.name + '（' + EL[sec.el] + '）</span>' + (sub ? '<span class="tag">' + sub + '</span>' : '') + (extra || "") + '</div></div>';
+  }
+
+  function viewYear() {
+    var y = state.sel.y, sec = sector(), ms = [];
+    for (var m = 1; m <= 12; m++) { var ds = monthDays(y, m); ms.push({ m: m, avg: avgDays(ds), days: ds }); }
+    var all = []; ms.forEach(function (x) { all = all.concat(x.days); });
+    var p = pillars(y, 7, 1);
+    var yAvg = avgDays(all);
+    $("navTitle").textContent = y + " 年";
+    $("navSub").textContent = GAN[p.y[0]] + ZHI[p.y[1]] + "年（立春換年）";
+    var best = ms.slice().sort(function (a, b) { return b.avg - a.avg; })[0], worst = ms.slice().sort(function (a, b) { return a.avg - b.avg; })[0];
+    renderHero(y + " 年", "流年 " + gzStr(p.y) + "（" + EL[GAN_EL[p.y[0]]] + EL[ZHI_EL[p.y[1]]] + "）", yAvg,
+      '<span class="tag">最強 ' + best.m + ' 月</span><span class="tag">最弱 ' + worst.m + ' 月</span>');
+    // 長條圖：以 0 為中線
+    var W = 360, H = 170, L = 26, R = 6, T = 14, B = 22, cw = (W - L - R) / 12, mid = T + (H - T - B) / 2, half = (H - T - B) / 2 - 4;
+    var maxAbs = 1.2;
+    var bars = ms.map(function (x, i) {
+      var v = Math.max(-maxAbs, Math.min(maxAbs, x.avg)), h = Math.abs(v) / maxAbs * half, lv = level(x.avg);
+      var bx = L + i * cw + cw * 0.18, bw = cw * 0.64, by = v >= 0 ? mid - h : mid;
+      return '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 1.5).toFixed(1) + '" rx="2" fill="var(' + LV_VAR[lv] + ')"/>' +
+        '<text x="' + (L + i * cw + cw / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + x.m + '</text>';
+    }).join("");
+    var grid = [-1, 0, 1].map(function (g) {
+      var gy = mid - g / maxAbs * half;
+      return '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + gy.toFixed(1) + '" y2="' + gy.toFixed(1) + '" stroke="var(--line)" stroke-width="' + (g === 0 ? 1.2 : 0.6) + '"/><text x="' + (L - 4) + '" y="' + (gy + 3.5).toFixed(1) + '" text-anchor="end">' + (g > 0 ? "+1" : g < 0 ? "−1" : "0") + '</text>';
+    }).join("");
+    var cells = ms.map(function (x) {
+      var lv = level(x.avg), a = x.days[0].p, b = x.days[x.days.length - 1].p;
+      var cur = (todayKey.y === y && todayKey.m === x.m) ? ' aria-current="true"' : "";
+      var gzs = gzStr(a.m) === gzStr(b.m) ? gzStr(a.m) + "月" : gzStr(a.m) + "→" + gzStr(b.m) + "月";
+      return '<button class="mcell" data-month="' + x.m + '"' + style(lv) + cur + '><b>' + x.m + ' 月</b>' + ico(lv) + '<small>' + LEVELS[lv].k + ' · ' + LEVELS[lv].sub + '</small></button>';
+    }).join("");
+    $("body").innerHTML =
+      '<div class="card"><div class="sectionhead"><h3>' + y + ' 年逐月氣象</h3><span>月指數（工作日平均）</span></div><div class="chartwrap"><svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="十二個月的投資氣象指數長條圖">' + grid + bars + '</svg></div></div>' +
+      '<div class="months">' + cells + '</div>';
+    setDetail(state.sel);
+  }
+
+  function viewMonth() {
+    var y = state.sel.y, m = state.sel.m, ds = monthDays(y, m), avg = avgDays(ds);
+    $("navTitle").textContent = y + " 年 " + m + " 月";
+    var a = ds[0].p, b = ds[ds.length - 1].p;
+    var gz = gzStr(a.m) === gzStr(b.m) ? gzStr(a.m) + "月" : gzStr(a.m) + "月 → " + gzStr(b.m) + "月";
+    $("navSub").textContent = "節氣月 " + gz;
+    renderHero(y + " 年 " + m + " 月", "節氣月 " + gz, avg);
+    var first = new Date(y, m - 1, 1).getDay(), cells = "";
+    for (var i = 0; i < first; i++) cells += '<div class="dcell pad"></div>';
+    ds.forEach(function (x) {
+      var off = x.dow === 0 || x.dow === 6, jie = jieOn(x.y, x.m, x.d);
+      var cls = "dcell" + (off ? " off" : "") + (sameDay(x, state.sel) ? " sel" : "") + (sameDay(x, todayKey) ? " today" : "");
+      cells += '<button class="' + cls + '" data-day="' + x.d + '"' + style(x.lv) + ' aria-label="' + m + '月' + x.d + '日 ' + LEVELS[x.lv].k + '"><span class="d num">' + x.d + '</span>' + ico(x.lv) + '<span class="gz">' + gzStr(x.p.d) + '</span>' + (jie ? '<span class="jie">' + jie + '</span>' : "") + '</button>';
+    });
+    $("body").innerHTML = '<div class="card"><div class="sectionhead"><h3>逐日氣象</h3><span>灰底為週末休市</span></div><div class="dow">' + WD.map(function (w) { return "<span>" + w + "</span>"; }).join("") + '</div><div class="grid7">' + cells + '</div></div>';
+    setDetail(state.sel);
+  }
+
+  function viewWeek() {
+    var ds = weekDays(state.sel), avg = avgDays(ds);
+    var f = ds[0], l = ds[6];
+    $("navTitle").textContent = f.m + "/" + f.d + " – " + l.m + "/" + l.d;
+    $("navSub").textContent = f.y + " 年 · 日 至 六";
+    var work = ds.filter(function (x) { return x.dow > 0 && x.dow < 6; });
+    var best = work.slice().sort(function (a, b) { return b.score - a.score; })[0], worst = work.slice().sort(function (a, b) { return a.score - b.score; })[0];
+    renderHero("本週", f.m + "/" + f.d + "–" + l.m + "/" + l.d, avg, '<span class="tag">較佳 週' + WD[best.dow] + '</span><span class="tag">較弱 週' + WD[worst.dow] + '</span>');
+    $("body").innerHTML = '<div class="card"><div class="sectionhead"><h3>逐日氣象</h3><span>條形：指數 −1.2 至 +1.2</span></div><div class="wlist">' + ds.map(function (x) {
+      var off = x.dow === 0 || x.dow === 6;
+      var v = Math.max(-1.2, Math.min(1.2, x.score)), w = Math.abs(v) / 1.2 * 50, left = v >= 0 ? 50 : 50 - w;
+      var jie = jieOn(x.y, x.m, x.d);
+      return '<button class="wrow' + (off ? " off" : "") + (sameDay(x, state.sel) ? " sel" : "") + '" data-date="' + x.y + '-' + x.m + '-' + x.d + '"' + style(x.lv) + '>' +
+        '<div class="dd"><b class="num">' + x.m + '/' + x.d + '</b><span>週' + WD[x.dow] + (off ? " 休市" : "") + '</span></div>' + ico(x.lv) +
+        '<div><div class="bar"><i style="left:' + left.toFixed(1) + '%;width:' + w.toFixed(1) + '%"></i></div><div class="gzt">日柱 ' + gzStr(x.p.d) + '（' + EL[GAN_EL[x.p.d[0]]] + EL[ZHI_EL[x.p.d[1]]] + '）' + (jie ? ' · ' + jie : '') + (x.tags.length ? ' · ' + x.tags[0] : '') + '</div></div>' +
+        '<div class="lv">' + LEVELS[x.lv].sub + '</div></button>';
+    }).join("") + '</div></div>';
+    setDetail(state.sel);
+  }
+
+  function setDetail(o) {
+    var x = evalDay(o.y, o.m, o.d, sector()), sec = sector(), p = x.p, jie = jieOn(o.y, o.m, o.d);
+    var hit = {}; LUO.forEach(function (r) { r.forEach(function (n) { if (LUO_EL[n] === sec.el) hit[n] = 1; }); });
+    var luo = LUO.map(function (r) { return r.map(function (n) { return '<span' + (hit[n] ? ' class="hit"' : "") + '>' + n + '</span>'; }).join(""); }).join("");
+    var gEl = GAN_EL[p.d[0]], zEl = ZHI_EL[p.d[1]];
+    var relTxt = function (e) { var r = rel(e, sec.el); return r === 2 ? "生助" : r === 1 ? "同氣" : r === -0.5 ? "洩氣" : r === -2 ? "剋制" : "耗財（我剋）"; };
+    $("detail").style.borderLeft = "5px solid var(" + LV_VAR[x.lv] + ")";
+    $("detail").innerHTML =
+      '<div class="sectionhead"><h3>' + o.y + '/' + o.m + '/' + o.d + '（週' + WD[x.dow] + '）' + (x.dow === 0 || x.dow === 6 ? " 休市" : "") + '</h3><span style="color:var(' + LV_VAR[x.lv] + ');font-weight:700">' + LEVELS[x.lv].k + ' · ' + LEVELS[x.lv].sub + '</span></div>' +
+      '<div class="pillars">' + pillarHTML(p.yy + " 年柱", p.y) + pillarHTML("月柱", p.m) + pillarHTML("日柱", p.d) + '</div>' +
+      '<div class="detail-grid"><dl class="kv">' +
+      '<dt>主題</dt><dd>' + sec.name + '（' + EL[sec.el] + '，河圖 ' + HETU[sec.el] + '）</dd>' +
+      '<dt>日干 ' + GAN[p.d[0]] + '</dt><dd>' + EL[gEl] + ' · ' + relTxt(gEl) + '</dd>' +
+      '<dt>日支 ' + ZHI[p.d[1]] + '</dt><dd>' + EL[zEl] + ' · ' + relTxt(zEl) + '</dd>' +
+      '<dt>月令 ' + gzStr(p.m) + '</dt><dd>' + EL[GAN_EL[p.m[0]]] + EL[ZHI_EL[p.m[1]]] + ' · ' + relTxt(ZHI_EL[p.m[1]]) + '</dd>' +
+      '<dt>指數</dt><dd class="num">' + (x.score >= 0 ? "+" : "") + x.score.toFixed(2) + (jie ? '（今日交 ' + jie + '）' : "") + '</dd>' +
+      '<dt>關注</dt><dd>' + sec.ind + '</dd>' +
+      (x.tags.length ? '<dt>提醒</dt><dd>' + x.tags.join("、") + '</dd>' : "") +
+      '</dl><div><div class="luo" style="--c: var(' + EL_VAR[sec.el] + ')" role="img" aria-label="洛書九宮，標示' + EL[sec.el] + '宮">' + luo + '</div><div class="note" style="margin-top:4px;text-align:center">洛書 · ' + EL[sec.el] + '宮</div></div></div>';
+  }
+
+  function render() {
+    renderControls();
+    if (state.view === "year") viewYear(); else if (state.view === "week") viewWeek(); else viewMonth();
+    var atMin = state.sel.y <= MIN_Y && (state.view === "year" || (state.view === "month" && state.sel.m === 1) || (state.view === "week" && weekDays(state.sel)[0].y < MIN_Y));
+    $("prev").disabled = prevTarget() === null;
+    $("next").disabled = nextTarget() === null;
+  }
+  function shifted(n) {
+    var s = state.sel, t;
+    if (state.view === "year") t = { y: s.y + n, m: s.m, d: Math.min(s.d, dim(s.y + n, s.m)) };
+    else if (state.view === "month") { var dt = new Date(s.y, s.m - 1 + n, 1); t = { y: dt.getFullYear(), m: dt.getMonth() + 1, d: Math.min(s.d, dim(dt.getFullYear(), dt.getMonth() + 1)) }; }
+    else { var w = new Date(s.y, s.m - 1, s.d + 7 * n); t = { y: w.getFullYear(), m: w.getMonth() + 1, d: w.getDate() }; }
+    return (t.y < MIN_Y || t.y > MAX_Y) ? null : t;
+  }
+  function prevTarget() { return shifted(-1); }
+  function nextTarget() { return shifted(1); }
+
+  /* ---------- 事件 ---------- */
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.view) { state.view = b.dataset.view; save(); render(); }
+    else if (b.dataset.sec) { state.sector = b.dataset.sec; save(); render(); }
+    else if (b.id === "prev") { var t = prevTarget(); if (t) { state.sel = t; render(); } }
+    else if (b.id === "next") { var n = nextTarget(); if (n) { state.sel = n; render(); } }
+    else if (b.id === "todayBtn") { state.sel = clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }); render(); }
+    else if (b.dataset.month) { state.sel = { y: state.sel.y, m: +b.dataset.month, d: Math.min(state.sel.d, dim(state.sel.y, +b.dataset.month)) }; state.view = "month"; save(); render(); window.scrollTo(0, 0); }
+    else if (b.dataset.day) { state.sel = { y: state.sel.y, m: state.sel.m, d: +b.dataset.day }; viewMonth(); }
+    else if (b.dataset.date) { var q = b.dataset.date.split("-"); state.sel = { y: +q[0], m: +q[1], d: +q[2] }; viewWeek(); }
+  });
+  render();
+  window.__hl = { pillars: pillars, evalDay: evalDay, level: level, sectors: SECTORS };
+})();
+</script>
