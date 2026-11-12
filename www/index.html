@@ -225,6 +225,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .dayl span { font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface2); }
 .dayl .g { color: var(--w0); border-color: var(--w0); }
 .dayl .r { color: var(--w4); border-color: var(--w4); }
+.mcell.lun .ico { grid-row: span 3; }
 @media (max-width: 420px) {
   .detail-grid { grid-template-columns: 1fr; }
   .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
@@ -577,44 +578,67 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       '<div class="tags"><span class="tag">主題：' + sec.name + '（' + EL[sec.el] + '）</span>' + (sub ? '<span class="tag">' + sub + '</span>' : '') + (extra || "") + '</div></div>';
   }
 
-  function viewYear() {
-    var y = state.sel.y, sec = sector(), ms = [];
-    for (var m = 1; m <= 12; m++) { var ds = monthDays(y, m); ms.push({ m: m, avg: avgDays(ds), days: ds }); }
-    var all = []; ms.forEach(function (x) { all = all.concat(x.days); });
-    var p = pillars(y, 7, 1);
-    var yAvg = avgOfMonths(ms.map(function (x) { return x.days; })).avg;
-    $("navTitle").textContent = y + " 年";
-    $("navSub").textContent = GAN[p.y[0]] + ZHI[p.y[1]] + "年" + (state.cal === "lunar" ? "（" + SHENGXIAO[p.y[1]] + "，春節換年）" : "（立春換年）");
-    var best = ms.slice().sort(function (a, b) { return b.avg - a.avg; })[0], worst = ms.slice().sort(function (a, b) { return a.avg - b.avg; })[0];
-    renderHero(y + " 年", "流年 " + gzStr(p.y) + "（" + EL[GAN_EL[p.y[0]]] + EL[ZHI_EL[p.y[1]]] + "）", yAvg,
-      '<span class="tag">最強 ' + best.m + ' 月</span><span class="tag">最弱 ' + worst.m + ' 月</span>');
-    // 長條圖：以 0 為中線
-    var W = 360, H = 170, L = 26, R = 6, T = 14, B = 22, cw = (W - L - R) / 12, mid = T + (H - T - B) / 2, half = (H - T - B) / 2 - 4;
-    var maxAbs = 1.2;
-    var bars = ms.map(function (x, i) {
+  function barChart(items, label) {
+    var n = items.length, W = 360, H = 170, L = 26, R = 6, T = 14, B = 22, cw = (W - L - R) / n, mid = T + (H - T - B) / 2, half = (H - T - B) / 2 - 4, maxAbs = 1.2;
+    var bars = items.map(function (x, i) {
       var v = Math.max(-maxAbs, Math.min(maxAbs, x.avg)), h = Math.abs(v) / maxAbs * half, lv = level(x.avg);
       var bx = L + i * cw + cw * 0.18, bw = cw * 0.64, by = v >= 0 ? mid - h : mid;
       return '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(h, 1.5).toFixed(1) + '" rx="2" fill="var(' + LV_VAR[lv] + ')"/>' +
-        '<text x="' + (L + i * cw + cw / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + x.m + '</text>';
+        '<text x="' + (L + i * cw + cw / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + x.short + '</text>';
     }).join("");
     var grid = [-1, 0, 1].map(function (g) {
       var gy = mid - g / maxAbs * half;
       return '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + gy.toFixed(1) + '" y2="' + gy.toFixed(1) + '" stroke="var(--line)" stroke-width="' + (g === 0 ? 1.2 : 0.6) + '"/><text x="' + (L - 4) + '" y="' + (gy + 3.5).toFixed(1) + '" text-anchor="end">' + (g > 0 ? "+1" : g < 0 ? "−1" : "0") + '</text>';
     }).join("");
-    var cells = ms.map(function (x) {
-      var lv = level(x.avg), a = x.days[0].p, b = x.days[x.days.length - 1].p;
-      var cur = (todayKey.y === y && todayKey.m === x.m) ? ' aria-current="true"' : "";
-      var gzs = gzStr(a.m) === gzStr(b.m) ? gzStr(a.m) + "月" : gzStr(a.m) + "→" + gzStr(b.m) + "月";
-      return '<button class="mcell" data-month="' + x.m + '"' + style(lv) + cur + '><b>' + x.m + ' 月</b>' + ico(lv) + '<small>' + LEVELS[lv].k + ' · ' + LEVELS[lv].sub + '</small></button>';
-    }).join("");
+    return '<div class="chartwrap"><svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">' + grid + bars + '</svg></div>';
+  }
+  function itemCells(items, lun) {
+    return '<div class="months">' + items.map(function (x) {
+      var lv = level(x.avg);
+      return '<button class="mcell' + (lun ? " lun" : "") + '" ' + x.attr + style(lv) + (x.cur ? ' aria-current="true"' : "") + '><b>' + x.name + '</b>' + ico(lv) + '<small>' + LEVELS[lv].k + ' · ' + LEVELS[lv].sub + ' · ' + sgn(x.avg) + '</small>' + (x.rng ? '<small>' + x.rng + '</small>' : "") + '</button>';
+    }).join("") + '</div>';
+  }
+  function itemTable(items) {
+    return '<div class="chartwrap"><table class="ptable"><thead><tr><th>月</th><th>干支</th><th>卦象</th><th>河洛</th><th>陰陽</th><th>合計</th></tr></thead><tbody>' + items.map(function (x) {
+      var pt = avgParts(x.days);
+      return '<tr><td>' + x.name + '</td>' + PART_NAMES.map(function (k) { return '<td class="num" style="color:' + pcol(pt[k[0]]) + '">' + sgn(pt[k[0]]) + '</td>'; }).join("") + '<td class="num"><b>' + sgn(x.avg) + '</b></td></tr>';
+    }).join("") + '</tbody></table></div>';
+  }
+  function lunarMonthItems(y) {                           // 農曆 y 年：正月初一到次年春節前一天
+    var out = [], sec = sector();
+    for (var i = 0; i < LUN.length; i++) {
+      if (LUN[i][1] !== y) continue;
+      var st = LUN[i][0], en = (LUN[i + 1] ? LUN[i + 1][0] : st + 30) - 1, days = [];
+      for (var n = st; n <= en; n++) { var dt = new Date(n * 86400000); days.push(evalDay(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate(), sec)); }
+      var f = days[0], l = days[days.length - 1], nm = (LUN[i][3] ? "閏" : "") + LM[LUN[i][2]] + "月";
+      out.push({ name: nm, short: (LUN[i][3] ? "閏" : "") + LM[LUN[i][2]], days: days, avg: avgDays(days), rng: f.m + "/" + f.d + "–" + l.m + "/" + l.d,
+        attr: 'data-ymd="' + f.y + '-' + f.m + '-' + f.d + '"', cur: n0(todayKey) >= st && n0(todayKey) <= en });
+    }
+    return out;
+  }
+  function n0(o) { return dayNumber(o.y, o.m, o.d); }
+
+  function viewYear() {
+    var y = state.sel.y, ms = [];
+    for (var m = 1; m <= 12; m++) { var ds = monthDays(y, m); ms.push({ m: m, name: m + " 月", short: "" + m, avg: avgDays(ds), days: ds, attr: 'data-month="' + m + '"', cur: todayKey.y === y && todayKey.m === m }); }
+    var p = pillars(y, 7, 1);
+    var yr = avgOfMonths(ms.map(function (x) { return x.days; })), yAvg = yr.avg;
+    $("navTitle").textContent = y + " 年";
+    $("navSub").textContent = GAN[p.y[0]] + ZHI[p.y[1]] + "年" + (state.cal === "lunar" ? "（" + SHENGXIAO[p.y[1]] + "，春節換年）" : "（立春換年）");
+    var best = ms.slice().sort(function (a, b) { return b.avg - a.avg; })[0], worst = ms.slice().sort(function (a, b) { return a.avg - b.avg; })[0];
+    renderHero(y + " 年", "流年 " + gzStr(p.y) + "（" + EL[GAN_EL[p.y[0]]] + EL[ZHI_EL[p.y[1]]] + "）", yAvg,
+      '<span class="tag">最強 ' + best.m + ' 月</span><span class="tag">最弱 ' + worst.m + ' 月</span>');
+    var lm = lunarMonthItems(y), lr = lm.length ? avgOfMonths(lm.map(function (x) { return x.days; })) : { avg: 0 };
+    var f = lm.length ? lm[0].days[0] : null, l = lm.length ? lm[lm.length - 1].days[lm[lm.length - 1].days.length - 1] : null;
     $("body").innerHTML =
-      '<div class="card"><div class="sectionhead"><h3>' + y + ' 年逐月氣象</h3><span>月指數（工作日平均）</span></div><div class="chartwrap"><svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="十二個月的投資氣象指數長條圖">' + grid + bars + '</svg></div></div>' +
-      partsCard(y + ' 年指數分解', '12 個月平均再平均', avgOfMonths(ms.map(function (x) { return x.days; })).parts) +
-      '<div class="card"><div class="sectionhead"><h3>逐月分解</h3><span>各月工作日平均</span></div><div class="chartwrap"><table class="ptable"><thead><tr><th>月</th><th>干支</th><th>卦象</th><th>河洛</th><th>陰陽</th><th>合計</th></tr></thead><tbody>' + ms.map(function (x) {
-        var pt = avgParts(x.days);
-        return '<tr><td>' + x.m + ' 月</td>' + PART_NAMES.map(function (k) { return '<td class="num" style="color:' + pcol(pt[k[0]]) + '">' + sgn(pt[k[0]]) + '</td>'; }).join("") + '<td class="num"><b>' + sgn(x.avg) + '</b></td></tr>';
-      }).join("") + '</tbody></table></div></div>' +
-      '<div class="months">' + cells + '</div>';
+      '<div class="card"><div class="sectionhead"><h3>國曆逐月氣象</h3><span>' + y + '/1–12 · 年均 ' + sgn(yAvg) + '</span></div>' + barChart(ms, "國曆十二個月的投資氣象指數長條圖") + '</div>' +
+      partsCard(y + ' 年指數分解', '國曆 12 個月平均再平均', yr.parts) +
+      '<div class="card"><div class="sectionhead"><h3>國曆逐月分解</h3><span>各月工作日平均</span></div>' + itemTable(ms) + '</div>' +
+      itemCells(ms, false) +
+      '<div class="card"><div class="sectionhead"><h3>農曆逐月氣象</h3><span>' + (f ? f.m + '/' + f.d + ' 至 ' + l.y + '/' + l.m + '/' + l.d + ' · 年均 ' + sgn(lr.avg) : '') + '</span></div>' +
+      '<p class="note" style="margin:0 0 6px">農曆 ' + GAN[(y - 4) % 10] + ZHI[(y - 4) % 12] + '年（' + SHENGXIAO[(y - 4) % 12] + '）從春節到次年春節前一天，共 ' + lm.length + ' 個月' + (lm.length === 13 ? '（含閏月）' : '') + '。點月份可跳到該月。</p>' + barChart(lm, "農曆各月的投資氣象指數長條圖") + '</div>' +
+      '<div class="card"><div class="sectionhead"><h3>農曆逐月分解</h3><span>各農曆月工作日平均</span></div>' + itemTable(lm) + '</div>' +
+      itemCells(lm, true);
     setDetail(state.sel);
   }
 
@@ -847,6 +871,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     else if (b.id === "prev") { var t = prevTarget(); if (t) { state.sel = t; render(); } }
     else if (b.id === "next") { var n = nextTarget(); if (n) { state.sel = n; render(); } }
     else if (b.id === "todayBtn") { state.sel = clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }); render(); }
+    else if (b.dataset.ymd) { var yq = b.dataset.ymd.split("-"); state.sel = { y: +yq[0], m: +yq[1], d: +yq[2] }; state.view = "month"; save(); render(); window.scrollTo(0, 0); }
     else if (b.dataset.month) { state.sel = { y: state.sel.y, m: +b.dataset.month, d: Math.min(state.sel.d, dim(state.sel.y, +b.dataset.month)) }; state.view = "month"; save(); render(); window.scrollTo(0, 0); }
     else if (b.dataset.day) { state.sel = { y: state.sel.y, m: state.sel.m, d: +b.dataset.day }; viewMonth(); }
     else if (b.dataset.date) { var q = b.dataset.date.split("-"); state.sel = { y: +q[0], m: +q[1], d: +q[2] }; viewWeek(); }
