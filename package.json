@@ -1,0 +1,11 @@
+{
+  "name": "hl-invest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "河洛數理投資",
+  "dependencies": {
+    "@capacitor/android": "6.1.2",
+    "@capacitor/cli": "6.1.2",
+    "@capacitor/core": "6.1.2"
+  }
+}
