@@ -5,6 +5,9 @@ on:
     branches: ["**"]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,3 +33,13 @@ jobs:
         with:
           name: hl-invest-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk heluo-invest.apk
+      - name: Publish to Release (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: 河洛數理投資 APK（最新）
+          body: 下載 heluo-invest.apk 後安裝（需允許安裝未知來源 App）。
+          files: heluo-invest.apk

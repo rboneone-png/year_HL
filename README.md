@@ -13,3 +13,7 @@
 合併到預設分支（main）後，`Deploy Pages` 會把 `www/` 發佈成網站：
 `https://rboneone-png.github.io/year_HL/`
 若首次沒有自動啟用，到 Settings → Pages → Source 選 **GitHub Actions**。
+
+## 直接下載 APK
+合併到 main 後，最新 APK 會放在 Releases：
+https://github.com/rboneone-png/year_HL/releases/download/latest/heluo-invest.apk
