@@ -541,6 +541,11 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     t.forEach(function (x) { PART_NAMES.forEach(function (k) { a[k[0]] += x.parts[k[0]] / t.length; }); });
     return a;
   }
+  function avgOfMonths(monthsDays) {                    // 全年 = 12 個月各自的月平均，再取平均
+    var avg = 0, pt = { base: 0, gua: 0, he: 0, yy: 0 }, n = monthsDays.length;
+    monthsDays.forEach(function (ds) { avg += avgDays(ds) / n; var q = avgParts(ds); PART_NAMES.forEach(function (k) { pt[k[0]] += q[k[0]] / n; }); });
+    return { avg: avg, parts: pt };
+  }
   function pcol(v) { return "var(" + (v > 0.005 ? "--w0" : v < -0.005 ? "--w4" : "--muted") + ")"; }
   function partsHTML(pt) {
     return '<div class="parts" aria-label="指數分解">' + PART_NAMES.map(function (k) { return '<span class="part"><small>' + k[1] + '</small><b class="num" style="color:' + pcol(pt[k[0]]) + '">' + sgn(pt[k[0]]) + '</b></span>'; }).join("") + '</div>';
@@ -577,7 +582,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     for (var m = 1; m <= 12; m++) { var ds = monthDays(y, m); ms.push({ m: m, avg: avgDays(ds), days: ds }); }
     var all = []; ms.forEach(function (x) { all = all.concat(x.days); });
     var p = pillars(y, 7, 1);
-    var yAvg = avgDays(all);
+    var yAvg = avgOfMonths(ms.map(function (x) { return x.days; })).avg;
     $("navTitle").textContent = y + " 年";
     $("navSub").textContent = GAN[p.y[0]] + ZHI[p.y[1]] + "年" + (state.cal === "lunar" ? "（" + SHENGXIAO[p.y[1]] + "，春節換年）" : "（立春換年）");
     var best = ms.slice().sort(function (a, b) { return b.avg - a.avg; })[0], worst = ms.slice().sort(function (a, b) { return a.avg - b.avg; })[0];
@@ -604,7 +609,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     }).join("");
     $("body").innerHTML =
       '<div class="card"><div class="sectionhead"><h3>' + y + ' 年逐月氣象</h3><span>月指數（工作日平均）</span></div><div class="chartwrap"><svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="十二個月的投資氣象指數長條圖">' + grid + bars + '</svg></div></div>' +
-      partsCard(y + ' 年指數分解', '全年工作日平均', avgParts(all)) +
+      partsCard(y + ' 年指數分解', '12 個月平均再平均', avgOfMonths(ms.map(function (x) { return x.days; })).parts) +
       '<div class="card"><div class="sectionhead"><h3>逐月分解</h3><span>各月工作日平均</span></div><div class="chartwrap"><table class="ptable"><thead><tr><th>月</th><th>干支</th><th>卦象</th><th>河洛</th><th>陰陽</th><th>合計</th></tr></thead><tbody>' + ms.map(function (x) {
         var pt = avgParts(x.days);
         return '<tr><td>' + x.m + ' 月</td>' + PART_NAMES.map(function (k) { return '<td class="num" style="color:' + pcol(pt[k[0]]) + '">' + sgn(pt[k[0]]) + '</td>'; }).join("") + '<td class="num"><b>' + sgn(x.avg) + '</b></td></tr>';
@@ -788,7 +793,8 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       days.forEach(function (x) { if (!x.off) items.push({ l: x.m + "/" + x.d + "（" + WD[x.dow] + "）", s: x.score }); });
       scope = state.view === "month" ? "本月" : "本週";
     }
-    pt = avgParts(days); avg = avgDays(days);
+    if (state.view === "year") { var ym = []; for (var q = 1; q <= 12; q++) ym.push(monthDays(state.sel.y, q)); var yr = avgOfMonths(ym); pt = yr.parts; avg = yr.avg; }
+    else { pt = avgParts(days); avg = avgDays(days); }
     var lv = level(avg), A = ALLOC[lv], L = LEVELS[lv];
     var drivers = PART_NAMES.map(function (k) { return { k: k[0], n: k[1], v: pt[k[0]] }; }).filter(function (d) { return Math.abs(d.v) >= 0.05; })
       .sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); }).slice(0, 2);
