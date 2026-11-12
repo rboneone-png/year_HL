@@ -153,6 +153,37 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; }
 .legend svg { width: 16px; height: 16px; }
 .note { font-size: 12px; color: var(--muted); }
+
+/* detail tabs, hexagram, stars */
+.dtabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; background: var(--surface2); border: 1px solid var(--line); border-radius: 8px; padding: 3px; margin: 8px 0 4px; }
+.dtabs button { border: 0; background: transparent; padding: 6px 0; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.dtabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.pillar .yy { margin-top: 2px; }
+.elrow { display: grid; grid-template-columns: 22px 1fr 18px; gap: 8px; align-items: center; font-size: 13px; }
+.elrow .b2 { height: 8px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--line); overflow: hidden; }
+.elrow .b2 i { display: block; height: 100%; }
+.elrow.mine { font-weight: 700; }
+.subh { font-family: var(--font-display); font-size: 14px; margin: 12px 0 6px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.subh span { font-family: var(--font-body); font-size: 12px; font-weight: 400; color: var(--muted); }
+.hexrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.hexc { text-align: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px 4px; background: var(--surface2); display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.hexc small { font-size: 11px; color: var(--muted); }
+.hexc b { font-family: var(--font-display); font-size: 17px; }
+.hexg { display: flex; flex-direction: column-reverse; gap: 4px; width: 52px; }
+.yao { display: flex; gap: 8px; height: 6px; }
+.yao i { flex: 1; background: var(--ink); border-radius: 1px; display: block; }
+.yao.mv i { background: var(--accent); }
+.verdict { display: inline-block; font-weight: 700; padding: 1px 10px; border-radius: 999px; border: 1px solid var(--vc); color: var(--vc); }
+.stars2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.stars span { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px; background: var(--surface2); border: 1px solid var(--line); min-height: 48px; color: var(--ink); }
+.stars span b { font-family: var(--font-display); font-size: 17px; color: var(--c); }
+.stars span small { font-size: 10px; color: var(--muted); }
+.stars span.hit { background: var(--c); border-color: var(--c); }
+.stars span.hit b, .stars span.hit small { color: var(--accent-ink); }
+.stars span.ctr { box-shadow: inset 0 0 0 2px var(--accent); }
+.hetu { width: 100%; max-width: 300px; display: block; margin: 0 auto; height: auto; }
+.hetu text { fill: var(--ink); font-family: var(--font-body); }
 @media (max-width: 420px) {
   .detail-grid { grid-template-columns: 1fr; }
   .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
@@ -192,7 +223,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   <section class="card">
     <div class="sectionhead"><h3>氣象圖例</h3><span>依所選主題的五行計算</span></div>
     <div class="legend" id="legend"></div>
-    <p class="note" style="margin:10px 0 0">以國曆日期換算節氣月與干支：年柱依立春、月柱依十二節、日柱依當日。分數由天干地支五行對所選主題的生剋關係加權而成，另計六沖與九運（2024–2043 離火運）背景。這是象徵性的術數參考，不是投資建議，也不保證報酬。實際投資請搭配基本面、技術面與個人風險承受度，不要重押或借錢投資。</p>
+    <p class="note" style="margin:10px 0 0">以國曆日期換算節氣月與干支：年柱依立春、月柱依十二節、日柱依當日。分數由天干地支五行對所選主題的生剋關係加權而成，另計六沖與九運（2024–2043 離火運）背景。卦象、河圖洛書與陰陽統計只作輔助說明，不計入指數。這是象徵性的術數參考，不是投資建議，也不保證報酬。實際投資請搭配基本面、技術面與個人風險承受度，不要重押或借錢投資。</p>
   </section>
 </div>
 
@@ -280,9 +311,91 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     return sum / t.length;
   }
   function gzStr(pl) { return GAN[pl[0]] + ZHI[pl[1]]; }
+  function yyTxt(pl) { return (pl[0] % 2 === 0 ? "陽" : "陰") + "干·" + (pl[1] % 2 === 0 ? "陽" : "陰") + "支"; }
   function pillarHTML(label, pl) {
-    return '<div class="pillar"><small>' + label + '</small><div class="gz"><span class="el-' + EL_CLS[GAN_EL[pl[0]]] + '">' + GAN[pl[0]] + '</span><span class="el-' + EL_CLS[ZHI_EL[pl[1]]] + '">' + ZHI[pl[1]] + '</span></div></div>';
+    return '<div class="pillar"><small>' + label + '</small><div class="gz"><span class="el-' + EL_CLS[GAN_EL[pl[0]]] + '">' + GAN[pl[0]] + '</span><span class="el-' + EL_CLS[ZHI_EL[pl[1]]] + '">' + ZHI[pl[1]] + '</span></div><small class="yy">' + yyTxt(pl) + '</small></div>';
   }
+
+  /* ---------- 卦象（梅花易數變法：以干支數起卦，時取開盤巳時） ---------- */
+  var TRI = [
+    { n: "乾", nat: "天", el: 3, bits: "111" }, { n: "兌", nat: "澤", el: 3, bits: "110" },
+    { n: "離", nat: "火", el: 1, bits: "101" }, { n: "震", nat: "雷", el: 0, bits: "100" },
+    { n: "巽", nat: "風", el: 0, bits: "011" }, { n: "坎", nat: "水", el: 4, bits: "010" },
+    { n: "艮", nat: "山", el: 2, bits: "001" }, { n: "坤", nat: "地", el: 2, bits: "000" }
+  ];
+  var HEX = [
+    ["乾","履","同人","無妄","姤","訟","遯","否"],
+    ["夬","兌","革","隨","大過","困","咸","萃"],
+    ["大有","睽","離","噬嗑","鼎","未濟","旅","晉"],
+    ["大壯","歸妹","豐","震","恆","解","小過","豫"],
+    ["小畜","中孚","家人","益","巽","渙","漸","觀"],
+    ["需","節","既濟","屯","井","坎","蹇","比"],
+    ["大畜","損","賁","頤","蠱","蒙","艮","剝"],
+    ["泰","臨","明夷","復","升","師","謙","坤"]
+  ];
+  var HINT = {
+    "乾":"剛健主導，順勢但忌過亢","坤":"厚德承載，宜守成","屯":"起步艱難，先小量試","蒙":"資訊不明，多看少動","需":"等待時機，不急進場","訟":"爭議紛擾，避開爭議題材","師":"資金集結，重紀律","比":"親附聚合，跟隨主流",
+    "小畜":"小幅蓄積，量能不足","履":"如履薄冰，謹慎前行","泰":"上下交通，行情順暢","否":"閉塞不通，宜縮手","同人":"群體共識，順勢同行","大有":"豐收盛大，宜分批獲利","謙":"低調求穩，不追高","豫":"樂觀預期，防情緒過熱",
+    "隨":"順勢而為，跟隨趨勢","蠱":"整頓積弊，檢視持股","臨":"漸進成長，可布局","觀":"觀察為主，暫不動","噬嗑":"排除阻礙，突破關卡","賁":"外表光鮮，須看實質","剝":"剝落退潮，防守為上","復":"反轉回升，留意底部",
+    "無妄":"不妄動，不投機","大畜":"大量蓄積，等待突破","頤":"養精蓄銳，控制成本","大過":"承載過重，部位過大要減","坎":"險陷重重，避免槓桿","離":"光明依附，題材亮麗","咸":"感應交流，消息面敏感","恆":"持之以恆，宜長期持有",
+    "遯":"退避隱遁，先出場","大壯":"氣勢強盛，忌躁進","晉":"晉升上行，順勢加碼","明夷":"光明受損，宜保守","家人":"內部穩固，守本業","睽":"分歧乖離，觀望","蹇":"行路艱難，等待","解":"困局化解，有解套機會",
+    "損":"先損後益，減碼換穩","益":"增益有利，可加碼","夬":"決斷果決，防突破後回落","姤":"意外相遇，短線機會但不長久","萃":"聚集匯聚，資金集中","升":"穩步攀升，漸進布局","困":"困窘受限，保存實力","井":"穩定供給，適合定期定額",
+    "革":"變革轉折，留意換軌","鼎":"鞏固新局，穩健成長","震":"震動驚擾，波動放大","艮":"靜止停頓，暫停操作","漸":"循序漸進，分批進場","歸妹":"倉促結合，防不穩","豐":"盛大豐滿，盛極防衰","旅":"漂泊不定，短線為主",
+    "巽":"順入滲透，柔性調整","兌":"喜悅溝通，量增價漲但防虛","渙":"渙散離散，資金流出","節":"節制有度，控管部位","中孚":"誠信相應，以基本面為憑","小過":"小事可為，大事不宜","既濟":"已成防變，見好就收","未濟":"尚未完成，繼續等待"
+  };
+  function triIdx(b) { for (var i = 0; i < 8; i++) if (TRI[i].bits === b) return i; return 0; }
+  function hexOf(bits) { var lo = triIdx(bits.slice(0, 3).join("")), up = triIdx(bits.slice(3, 6).join("")); return { lo: lo, up: up, name: HEX[up][lo], bits: bits }; }
+  function cast(p) {
+    var sum = (p.y[1] + 1) + (p.m[1] + 1) + (p.d[1] + 1), HS = 6;      // 巳時 = 6
+    var up = (sum - 1) % 8, lo = (sum + HS - 1) % 8, mv = (sum + HS) % 6 || 6;
+    var bits = (TRI[lo].bits + TRI[up].bits).split("").map(Number);
+    var ben = hexOf(bits), hu = hexOf([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]]);
+    var cb = bits.slice(); cb[mv - 1] = cb[mv - 1] ? 0 : 1;
+    var bian = hexOf(cb);
+    var yongIsLower = mv <= 3, ti = TRI[yongIsLower ? up : lo], yong = TRI[yongIsLower ? lo : up];
+    var eT = ti.el, eU = yong.el, v;
+    if (eT === eU) v = { t: "平", c: 2, d: "體用比和" };
+    else if ((eU + 1) % 5 === eT) v = { t: "吉", c: 0, d: "用生體" };
+    else if ((eT + 2) % 5 === eU) v = { t: "小吉", c: 1, d: "體剋用" };
+    else if ((eT + 1) % 5 === eU) v = { t: "小凶", c: 3, d: "體生用（洩氣）" };
+    else v = { t: "凶", c: 4, d: "用剋體" };
+    return { ben: ben, hu: hu, bian: bian, mv: mv, ti: ti, yong: yong, v: v };
+  }
+  function hexHTML(bits, mv) {
+    return '<div class="hexg">' + bits.map(function (b, i) { return '<span class="yao' + (mv === i + 1 ? " mv" : "") + '">' + (b ? '<i></i>' : '<i></i><i></i>') + '</span>'; }).join("") + '</div>';
+  }
+  function hexCard(label, h, mv) {
+    return '<div class="hexc"><small>' + label + '</small>' + hexHTML(h.bits, mv) + '<b>' + h.name + '</b><small>' + TRI[h.up].nat + '上' + TRI[h.lo].nat + '下</small></div>';
+  }
+
+  /* ---------- 干支關係、洛書飛星 ---------- */
+  var HE_G = [[0,5],[1,6],[2,7],[3,8],[4,9]], LIUHE = [[0,1],[2,11],[3,10],[4,9],[5,8],[6,7]];
+  function inPairs(list, a, b) { return list.some(function (q) { return (q[0] === a && q[1] === b) || (q[0] === b && q[1] === a); }); }
+  function relations(p) {
+    var out = [];
+    [["日月", p.d, p.m], ["日年", p.d, p.y]].forEach(function (t) {
+      var n = t[0], a = t[1], b = t[2];
+      if (a[0] !== b[0] && inPairs(HE_G, a[0], b[0])) out.push(n + "天干五合");
+      if (inPairs(LIUHE, a[1], b[1])) out.push(n + "地支六合");
+      if (Math.abs(a[1] - b[1]) === 6) out.push(n + "地支六沖");
+    });
+    return out;
+  }
+  var STAR_EL = [0, 4, 2, 0, 0, 2, 3, 3, 2, 1];
+  var STAR_NAME = ["", "一白", "二黑", "三碧", "四綠", "五黃", "六白", "七赤", "八白", "九紫"];
+  var STAR_TXT = ["", "貴人與流動，偏吉", "病符，偏弱", "是非與爭執", "文昌與題材", "災煞，偏凶", "權威與資金，偏吉", "退氣與口舌", "旺氣，偏吉", "當令旺氣，偏吉"];
+  var PALACE = [["巽·東南", "離·南", "坤·西南"], ["震·東", "中宮", "兌·西"], ["艮·東北", "坎·北", "乾·西北"]];
+  var FLY = [[8, 4, 6], [7, 0, 2], [3, 5, 1]];
+  function norm9(x) { return ((x - 1) % 9 + 9) % 9 + 1; }
+  function yearStar(yy) { return norm9(11 - (yy % 9)); }
+  function monthStar(yb, mbr) { var g = [0, 6, 3, 9].indexOf(yb) >= 0 ? 8 : [4, 10, 1, 7].indexOf(yb) >= 0 ? 2 : 5; return norm9(g - mbr); }
+  function starGrid(c, sec) {
+    return '<div class="stars">' + FLY.map(function (row, r) { return row.map(function (step, k) {
+      var n = norm9(c + step), hit = STAR_EL[n] === sec.el;
+      return '<span class="' + (hit ? "hit " : "") + (step === 0 ? "ctr" : "") + '" style="--c: var(' + EL_VAR[STAR_EL[n]] + ')"><b>' + n + '</b><small>' + PALACE[r][k] + '</small></span>';
+    }).join(""); }).join("") + '</div>';
+  }
+  function digitRoot(n) { while (n > 9) { var t = 0; String(n).split("").forEach(function (c) { t += +c; }); n = t; } return n; }
 
   /* ---------- 圖示 ---------- */
   var SVGS = [
@@ -302,13 +415,14 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     if (o.y > MAX_Y) return { y: MAX_Y, m: 12, d: 31 };
     return o;
   }
-  var state = { view: "month", sector: "tech", sel: clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }) };
+  var state = { view: "month", sector: "tech", dtab: "gz", sel: clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }) };
   try {
     var saved = JSON.parse(localStorage.getItem("hl-state") || "{}");
     if (saved.view) state.view = saved.view;
+    if (saved.dtab) state.dtab = saved.dtab;
     if (saved.sector && SECTORS.some(function (s) { return s.id === saved.sector; })) state.sector = saved.sector;
   } catch (e) {}
-  function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector })); } catch (e) {} }
+  function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector, dtab: state.dtab })); } catch (e) {} }
   function sector() { return SECTORS.filter(function (s) { return s.id === state.sector; })[0]; }
   function dim(y, m) { return new Date(y, m, 0).getDate(); }
   function monthDays(y, m) { var a = [], n = dim(y, m), sec = sector(); for (var d = 1; d <= n; d++) a.push(evalDay(y, m, d, sec)); return a; }
@@ -419,23 +533,66 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 
   function setDetail(o) {
     var x = evalDay(o.y, o.m, o.d, sector()), sec = sector(), p = x.p, jie = jieOn(o.y, o.m, o.d);
-    var hit = {}; LUO.forEach(function (r) { r.forEach(function (n) { if (LUO_EL[n] === sec.el) hit[n] = 1; }); });
-    var luo = LUO.map(function (r) { return r.map(function (n) { return '<span' + (hit[n] ? ' class="hit"' : "") + '>' + n + '</span>'; }).join(""); }).join("");
     var gEl = GAN_EL[p.d[0]], zEl = ZHI_EL[p.d[1]];
     var relTxt = function (e) { var r = rel(e, sec.el); return r === 2 ? "生助" : r === 1 ? "同氣" : r === -0.5 ? "洩氣" : r === -2 ? "剋制" : "耗財（我剋）"; };
+    var tab = state.dtab, body = "";
+    if (tab === "gz") {
+      var cnt = [0, 0, 0, 0, 0], yang = 0;
+      [p.y, p.m, p.d].forEach(function (pl) { cnt[GAN_EL[pl[0]]]++; cnt[ZHI_EL[pl[1]]]++; if (pl[0] % 2 === 0) yang++; if (pl[1] % 2 === 0) yang++; });
+      var yin = 6 - yang, yyTxt2 = yang > yin ? "陽氣盛，市場偏動，易追價" : yang < yin ? "陰氣重，市場偏靜，宜守" : "陰陽平衡";
+      var rels = relations(p);
+      body += '<div class="pillars">' + pillarHTML(p.yy + " 年柱", p.y) + pillarHTML("月柱", p.m) + pillarHTML("日柱", p.d) + '</div>' +
+        '<div class="subh">五行統計<span>三柱六字（以主氣計）</span></div>' +
+        '<div style="display:flex;flex-direction:column;gap:5px">' + [0, 1, 2, 3, 4].map(function (e) {
+          return '<div class="elrow' + (e === sec.el ? " mine" : "") + '"><span class="el-' + EL_CLS[e] + '">' + EL[e] + '</span><span class="b2"><i style="width:' + (cnt[e] / 6 * 100).toFixed(0) + '%;background:var(' + EL_VAR[e] + ')"></i></span><span class="num">' + cnt[e] + '</span></div>'; }).join("") + '</div>' +
+        '<div class="subh">陰陽<span>陽 ' + yang + ' · 陰 ' + yin + '</span></div><div style="font-size:14px">' + yyTxt2 + '。</div>' +
+        '<div class="subh">與所選主題的關係<span>' + sec.name + '（' + EL[sec.el] + '）</span></div>' +
+        '<dl class="kv"><dt>日干 ' + GAN[p.d[0]] + '</dt><dd>' + EL[gEl] + ' · ' + relTxt(gEl) + '</dd>' +
+        '<dt>日支 ' + ZHI[p.d[1]] + '</dt><dd>' + EL[zEl] + ' · ' + relTxt(zEl) + '</dd>' +
+        '<dt>月令 ' + gzStr(p.m) + '</dt><dd>' + EL[GAN_EL[p.m[0]]] + EL[ZHI_EL[p.m[1]]] + ' · ' + relTxt(ZHI_EL[p.m[1]]) + '</dd>' +
+        '<dt>合沖</dt><dd>' + (rels.length ? rels.join("、") : "無") + '</dd>' +
+        '<dt>關注</dt><dd>' + sec.ind + '</dd>' +
+        (x.tags.length ? '<dt>提醒</dt><dd>' + x.tags.join("、") + '</dd>' : "") + '</dl>';
+    } else if (tab === "gua") {
+      var g = cast(p), vc = "var(" + LV_VAR[g.v.c] + ")";
+      body += '<div class="hexrow" style="margin-top:10px">' + hexCard("本卦", g.ben, g.mv) + hexCard("互卦", g.hu, 0) + hexCard("變卦", g.bian, 0) + '</div>' +
+        '<dl class="kv" style="margin-top:12px">' +
+        '<dt>上卦</dt><dd>' + TRI[g.ben.up].n + '（' + TRI[g.ben.up].nat + '，' + EL[TRI[g.ben.up].el] + '）</dd>' +
+        '<dt>下卦</dt><dd>' + TRI[g.ben.lo].n + '（' + TRI[g.ben.lo].nat + '，' + EL[TRI[g.ben.lo].el] + '）</dd>' +
+        '<dt>動爻</dt><dd>第 ' + g.mv + ' 爻（圖中以主色標示）</dd>' +
+        '<dt>體 / 用</dt><dd>體 ' + g.ti.n + EL[g.ti.el] + '，用 ' + g.yong.n + EL[g.yong.el] + '</dd>' +
+        '<dt>體用判斷</dt><dd><span class="verdict" style="--vc:' + vc + '">' + g.v.t + '</span> ' + g.v.d + '</dd>' +
+        '<dt>本卦 ' + g.ben.name + '</dt><dd>' + HINT[g.ben.name] + '</dd>' +
+        '<dt>變卦 ' + g.bian.name + '</dt><dd>後續趨勢：' + HINT[g.bian.name] + '</dd></dl>' +
+        '<p class="note" style="margin:8px 0 0">以年、月、日三柱地支數相加起卦，時辰取開盤的巳時，是梅花易數的變法，不用農曆。卦象只作輔助說明，不計入氣象指數。</p>';
+    } else {
+      var ys = yearStar(p.yy), ms = monthStar(p.y[1], (p.m[1] - 2 + 12) % 12), cnt2 = [0, 0, 0, 0, 0];
+      [p.y, p.m, p.d].forEach(function (pl) { cnt2[GAN_EL[pl[0]]]++; cnt2[ZHI_EL[pl[1]]]++; });
+      var nodes = [[4, 130, 46], [1, 130, 178], [3, 46, 112], [0, 214, 112], [2, 130, 112]];
+      var svg = '<svg class="hetu" viewBox="0 0 260 224" role="img" aria-label="河圖五行方位">' +
+        nodes.map(function (n) { return n[0] === 2 ? "" : '<line x1="130" y1="112" x2="' + n[1] + '" y2="' + n[2] + '" stroke="var(--line)" stroke-width="1.5"/>'; }).join("") +
+        nodes.map(function (n) {
+          var e = n[0], mine = e === sec.el;
+          return '<g><circle cx="' + n[1] + '" cy="' + n[2] + '" r="28" fill="var(' + EL_VAR[e] + ')" fill-opacity="' + (mine ? 0.28 : 0.12) + '" stroke="' + (mine ? "var(--accent)" : "var(" + EL_VAR[e] + ")") + '" stroke-width="' + (mine ? 3 : 1.5) + '"/>' +
+            '<text x="' + n[1] + '" y="' + (n[2] - 3) + '" text-anchor="middle" font-size="17" font-weight="700">' + EL[e] + '</text>' +
+            '<text x="' + n[1] + '" y="' + (n[2] + 13) + '" text-anchor="middle" font-size="11">' + HETU[e] + '</text></g>';
+        }).join("") +
+        '<text x="130" y="11" text-anchor="middle" font-size="10" style="fill:var(--muted)">北</text><text x="130" y="221" text-anchor="middle" font-size="10" style="fill:var(--muted)">南</text><text x="8" y="116" font-size="10" style="fill:var(--muted)">西</text><text x="244" y="116" font-size="10" style="fill:var(--muted)">東</text></svg>';
+      var root = digitRoot(o.y + o.m + o.d), rEl = LUO_EL[root];
+      body += '<div class="subh">河圖<span>生數 1–5 · 成數 6–10；外圈為所選主題</span></div>' + svg +
+        '<div class="subh">洛書飛星<span>亮色為與主題同五行的星</span></div>' +
+        '<div class="stars2"><div><div class="note" style="margin-bottom:4px">流年 ' + STAR_NAME[ys] + '入中（' + p.yy + '年）</div>' + starGrid(ys, sec) + '<div class="note" style="margin-top:4px">' + STAR_TXT[ys] + '</div></div>' +
+        '<div><div class="note" style="margin-bottom:4px">流月 ' + STAR_NAME[ms] + '入中（' + gzStr(p.m) + '月）</div>' + starGrid(ms, sec) + '<div class="note" style="margin-top:4px">' + STAR_TXT[ms] + '</div></div></div>' +
+        '<div class="subh">數理<span>輔助，權重低於干支五行</span></div>' +
+        '<dl class="kv"><dt>日期數根</dt><dd class="num">' + o.y + '/' + o.m + '/' + o.d + ' → ' + root + '（洛書' + ["", "坎", "坤", "震", "巽", "中", "乾", "兌", "艮", "離"][root] + '宮，' + EL[rEl] + '，' + relTxt(rEl) + '）</dd>' +
+        '<dt>三元九運</dt><dd>九運離火（2024–2043）：科技、AI、能源、傳媒題材偏旺，屬象徵性背景。</dd></dl>';
+    }
     $("detail").style.borderLeft = "5px solid var(" + LV_VAR[x.lv] + ")";
     $("detail").innerHTML =
       '<div class="sectionhead"><h3>' + o.y + '/' + o.m + '/' + o.d + '（週' + WD[x.dow] + '）' + (x.dow === 0 || x.dow === 6 ? " 休市" : "") + '</h3><span style="color:var(' + LV_VAR[x.lv] + ');font-weight:700">' + LEVELS[x.lv].k + ' · ' + LEVELS[x.lv].sub + '</span></div>' +
-      '<div class="pillars">' + pillarHTML(p.yy + " 年柱", p.y) + pillarHTML("月柱", p.m) + pillarHTML("日柱", p.d) + '</div>' +
-      '<div class="detail-grid"><dl class="kv">' +
-      '<dt>主題</dt><dd>' + sec.name + '（' + EL[sec.el] + '，河圖 ' + HETU[sec.el] + '）</dd>' +
-      '<dt>日干 ' + GAN[p.d[0]] + '</dt><dd>' + EL[gEl] + ' · ' + relTxt(gEl) + '</dd>' +
-      '<dt>日支 ' + ZHI[p.d[1]] + '</dt><dd>' + EL[zEl] + ' · ' + relTxt(zEl) + '</dd>' +
-      '<dt>月令 ' + gzStr(p.m) + '</dt><dd>' + EL[GAN_EL[p.m[0]]] + EL[ZHI_EL[p.m[1]]] + ' · ' + relTxt(ZHI_EL[p.m[1]]) + '</dd>' +
-      '<dt>指數</dt><dd class="num">' + (x.score >= 0 ? "+" : "") + x.score.toFixed(2) + (jie ? '（今日交 ' + jie + '）' : "") + '</dd>' +
-      '<dt>關注</dt><dd>' + sec.ind + '</dd>' +
-      (x.tags.length ? '<dt>提醒</dt><dd>' + x.tags.join("、") + '</dd>' : "") +
-      '</dl><div><div class="luo" style="--c: var(' + EL_VAR[sec.el] + ')" role="img" aria-label="洛書九宮，標示' + EL[sec.el] + '宮">' + luo + '</div><div class="note" style="margin-top:4px;text-align:center">洛書 · ' + EL[sec.el] + '宮</div></div></div>';
+      '<div class="note num">指數 ' + (x.score >= 0 ? "+" : "") + x.score.toFixed(2) + (jie ? '（今日交 ' + jie + '）' : "") + '</div>' +
+      '<div class="dtabs" role="group" aria-label="分析類別">' +
+      [["gz", "干支五行"], ["gua", "卦象"], ["he", "河洛理數"]].map(function (t) { return '<button data-dtab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>' + body;
   }
 
   function render() {
@@ -458,7 +615,8 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   /* ---------- 事件 ---------- */
   document.addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.view) { state.view = b.dataset.view; save(); render(); }
+    if (b.dataset.dtab) { state.dtab = b.dataset.dtab; save(); setDetail(state.sel); }
+    else if (b.dataset.view) { state.view = b.dataset.view; save(); render(); }
     else if (b.dataset.sec) { state.sector = b.dataset.sec; save(); render(); }
     else if (b.id === "prev") { var t = prevTarget(); if (t) { state.sel = t; render(); } }
     else if (b.id === "next") { var n = nextTarget(); if (n) { state.sel = n; render(); } }
@@ -468,6 +626,6 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     else if (b.dataset.date) { var q = b.dataset.date.split("-"); state.sel = { y: +q[0], m: +q[1], d: +q[2] }; viewWeek(); }
   });
   render();
-  window.__hl = { pillars: pillars, evalDay: evalDay, level: level, sectors: SECTORS };
+  window.__hl = { cast: cast, HEX: HEX, HINT: HINT, yearStar: yearStar, monthStar: monthStar, pillars: pillars, evalDay: evalDay, level: level, sectors: SECTORS };
 })();
 </script>
