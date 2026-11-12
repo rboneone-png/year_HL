@@ -204,6 +204,10 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .calsw .seg { flex: 1; grid-template-columns: repeat(2, 1fr); }
 .calsw .seg button { padding: 6px 0; font-size: 13px; }
 .dcell { min-height: 70px; }
+.parts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 4px; }
+.part { border: 1px solid var(--line); background: var(--surface2); border-radius: 8px; padding: 4px 2px; text-align: center; display: flex; flex-direction: column; }
+.part small { font-size: 11px; color: var(--muted); }
+.part b { font-size: 14px; }
 @media (max-width: 420px) {
   .detail-grid { grid-template-columns: 1fr; }
   .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
@@ -244,7 +248,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   <section class="card">
     <div class="sectionhead"><h3>氣象圖例</h3><span>依所選主題的五行計算</span></div>
     <div class="legend" id="legend"></div>
-    <p class="note" style="margin:10px 0 0">以國曆日期對照農曆顯示。評估曆法可選「農曆」（春節換年柱、月柱依農曆月，正月為寅月）或「節氣」（立春換年柱、月柱依十二節，即八字排法）；日柱兩者相同。農曆資料為內建查表，涵蓋 2024–2036 年。分數由天干地支五行對所選主題的生剋關係加權而成，另計六沖與九運（2024–2043 離火運）背景。卦象、河圖洛書與陰陽統計只作輔助說明，不計入指數。這是象徵性的術數參考，不是投資建議，也不保證報酬。實際投資請搭配基本面、技術面與個人風險承受度，不要重押或借錢投資。</p>
+    <p class="note" style="margin:10px 0 0">以國曆日期對照農曆顯示。評估曆法可選「農曆」（春節換年柱、月柱依農曆月，正月為寅月）或「節氣」（立春換年柱、月柱依十二節，即八字排法）；日柱兩者相同。農曆資料為內建查表，涵蓋 2024–2036 年。分數由天干地支五行對所選主題的生剋關係加權而成，另計六沖與九運（2024–2043 離火運）背景。指數由四部分相加：干支五行（主）、卦象（體用吉凶與用卦生剋，約 ±0.4）、河洛（流年星、流月星、日期數根與星的吉凶，約 ±0.3）、陰陽（三柱陰陽，木火喜陽氣盛、金水喜陰氣重，±0.12）。詳情卡上方列出當日的分解。這是象徵性的術數參考，不是投資建議，也不保證報酬。實際投資請搭配基本面、技術面與個人風險承受度，不要重押或借錢投資。</p>
   </section>
 </div>
 
@@ -352,9 +356,17 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     [p.y, p.m, p.d].forEach(function (pl) { if (GAN_EL[pl[0]] === s) same++; if (ZHI_EL[pl[1]] === s) same++; });
     if (same >= 4) { sc -= 0.3; tags.push("五行過旺，防過熱"); }
     var ln = lunarOf(y, m, d), hol = lunHoliday(y, m, d, ln), dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+    var base = sc, gq = sec.code ? castStock(sec.code, p, ln) : cast(p, ln);
+    var guaS = [0.25, 0.12, 0, -0.12, -0.25][gq.v.c] + 0.08 * rel(gq.yong.el, s);                       // 卦象：體用吉凶，加用卦與主題的生剋
+    var ys = yearStar(p.yy), ms = monthStar(p.y[1], (p.m[1] - 2 + 12) % 12), rt = digitRoot(y + m + d);
+    var heS = 0.06 * rel(STAR_EL[ys], s) + 0.08 * rel(STAR_EL[ms], s) + 0.05 * rel(LUO_EL[rt], s) + 0.04 * (STAR_LUCK[ys] + STAR_LUCK[ms]);   // 河洛：流年星、流月星、日數根與星的吉凶
+    var yang = 0; [p.y, p.m, p.d].forEach(function (pl) { if (pl[0] % 2 === 0) yang++; if (pl[1] % 2 === 0) yang++; });
+    var yyS = 0.12 * ((yang - 3) / 3) * [1, 1, 0, -1, -1][s];                                            // 陰陽：木火屬陽喜陽氣盛，金水屬陰喜陰氣重
+    sc += guaS + heS + yyS;
+    var parts = { base: base, gua: guaS, he: heS, yy: yyS, yang: yang };
     var off = dow === 0 || dow === 6 || !!(hol && hol.off);
     if (hol && hol.off && dow > 0 && dow < 6) tags.push(hol.name + "（休市，以公告為準）");
-    return { p: p, score: sc, lv: level(sc), tags: tags, y: y, m: m, d: d, dow: dow, ln: ln, hol: hol, off: off };
+    return { p: p, score: sc, lv: level(sc), tags: tags, y: y, m: m, d: d, dow: dow, ln: ln, hol: hol, off: off, parts: parts, gq: gq };
   }
   function level(s) { return s >= 0.8 ? 0 : s >= 0.3 ? 1 : s >= -0.25 ? 2 : s >= -0.75 ? 3 : 4; }
   function avgDays(days) {
@@ -445,6 +457,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   }
   var STAR_EL = [0, 4, 2, 0, 0, 2, 3, 3, 2, 1];
   var STAR_NAME = ["", "一白", "二黑", "三碧", "四綠", "五黃", "六白", "七赤", "八白", "九紫"];
+  var STAR_LUCK = [0, 1, -1, 0, 0, -1, 1, 0, 1, 1];
   var STAR_TXT = ["", "貴人與流動，偏吉", "病符，偏弱", "是非與爭執", "文昌與題材", "災煞，偏凶", "權威與資金，偏吉", "退氣與口舌", "旺氣，偏吉", "當令旺氣，偏吉"];
   var PALACE = [["巽·東南", "離·南", "坤·西南"], ["震·東", "中宮", "兌·西"], ["艮·東北", "坎·北", "乾·西北"]];
   var FLY = [[8, 4, 6], [7, 0, 2], [3, 5, 1]];
@@ -498,6 +511,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   }
   function inRange(y) { return y >= MIN_Y && y <= MAX_Y; }
   function $(id) { return document.getElementById(id); }
+  function sgn(v) { return (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2); }
   function pad2(n) { return n < 10 ? "0" + n : "" + n; }
   function sameDay(a, b) { return a.y === b.y && a.m === b.m && a.d === b.d; }
   function style(l) { return ' style="--wc: var(' + LV_VAR[l] + ')"'; }
@@ -613,7 +627,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<div class="subh">五行統計<span>三柱六字（以主氣計）</span></div>' +
         '<div style="display:flex;flex-direction:column;gap:5px">' + [0, 1, 2, 3, 4].map(function (e) {
           return '<div class="elrow' + (e === sec.el ? " mine" : "") + '"><span class="el-' + EL_CLS[e] + '">' + EL[e] + '</span><span class="b2"><i style="width:' + (cnt[e] / 6 * 100).toFixed(0) + '%;background:var(' + EL_VAR[e] + ')"></i></span><span class="num">' + cnt[e] + '</span></div>'; }).join("") + '</div>' +
-        '<div class="subh">陰陽<span>陽 ' + yang + ' · 陰 ' + yin + '</span></div><div style="font-size:14px">' + yyTxt2 + '。</div>' +
+        '<div class="subh">陰陽<span>陽 ' + yang + ' · 陰 ' + yin + '</span></div><div style="font-size:14px">' + yyTxt2 + '。對指數貢獻 ' + sgn(x.parts.yy) + '。</div>' +
         '<div class="subh">與所選主題的關係<span>' + sec.name + '（' + EL[sec.el] + '）</span></div>' +
         '<dl class="kv"><dt>日干 ' + GAN[p.d[0]] + '</dt><dd>' + EL[gEl] + ' · ' + relTxt(gEl) + '</dd>' +
         '<dt>日支 ' + ZHI[p.d[1]] + '</dt><dd>' + EL[zEl] + ' · ' + relTxt(zEl) + '</dd>' +
@@ -627,12 +641,13 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<dl class="kv" style="margin-top:12px">' +
         '<dt>上卦</dt><dd>' + TRI[g.ben.up].n + '（' + TRI[g.ben.up].nat + '，' + EL[TRI[g.ben.up].el] + '）</dd>' +
         '<dt>下卦</dt><dd>' + TRI[g.ben.lo].n + '（' + TRI[g.ben.lo].nat + '，' + EL[TRI[g.ben.lo].el] + '）</dd>' +
+        '<dt>指數貢獻</dt><dd class="num">' + sgn(x.parts.gua) + '</dd>' +
         '<dt>動爻</dt><dd>第 ' + g.mv + ' 爻（圖中以主色標示）</dd>' +
         '<dt>體 / 用</dt><dd>體 ' + g.ti.n + EL[g.ti.el] + '，用 ' + g.yong.n + EL[g.yong.el] + '</dd>' +
         '<dt>體用判斷</dt><dd><span class="verdict" style="--vc:' + vc + '">' + g.v.t + '</span> ' + g.v.d + '</dd>' +
         '<dt>本卦 ' + g.ben.name + '</dt><dd>' + HINT[g.ben.name] + '</dd>' +
         '<dt>變卦 ' + g.bian.name + '</dt><dd>後續趨勢：' + HINT[g.bian.name] + '</dd></dl>' +
-        '<p class="note" style="margin:8px 0 0">依傳統梅花易數，以年支數加農曆月、農曆日起卦（上卦），再加時辰取開盤的巳時（下卦）；動爻由總數除以 6 取餘。卦象只作輔助說明，不計入氣象指數。</p>';
+        '<p class="note" style="margin:8px 0 0">依傳統梅花易數，以年支數加農曆月、農曆日起卦（上卦），再加時辰取開盤的巳時（下卦）；動爻由總數除以 6 取餘。卦象已計入氣象指數：體用吉凶 ±0.25，再加用卦與主題的生剋。</p>';
     } else if (tab === "stk") {
       var chips = state.stocks.map(function (c) {
         return '<span class="chip" style="--c: var(--accent)"><button data-stock="' + c + '" aria-pressed="' + (state.stock === c) + '" style="border:0;background:transparent;padding:0;font-weight:' + (state.stock === c ? 700 : 400) + '">' + c + '</button><button class="x" data-rmstock="' + c + '" aria-label="移除 ' + c + '">×</button></span>';
@@ -642,11 +657,11 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       if (!state.stock) {
         body += '<p class="note">輸入 2 到 6 位數字的股票或 ETF 代號，會以代號起卦並算出個股的五行氣象。</p>';
       } else {
-        var code = state.stock, se = TAIL_EL[+code.slice(-1)], sx = evalDay(o.y, o.m, o.d, { el: se }), sg = castStock(code, p, sx.ln);
+        var code = state.stock, se = TAIL_EL[+code.slice(-1)], sx = evalDay(o.y, o.m, o.d, { el: se, code: code }), sg = castStock(code, p, sx.ln);
         var rt = digitRoot(+code.split("").reduce(function (a, c) { return a + +c; }, 0)), rtName = ["", "坎", "坤", "震", "巽", "中", "乾", "兌", "艮", "離"][rt];
-        var md = monthDays(o.y, o.m, { el: se }), mAvg = avgDays(md), mLv = level(mAvg);
+        var md = monthDays(o.y, o.m, { el: se, code: code }), mAvg = avgDays(md), mLv = level(mAvg);
         var nx = [], dt = new Date(o.y, o.m - 1, o.d);
-        while (nx.length < 5) { dt.setDate(dt.getDate() + 1); if (inRange(dt.getFullYear())) { var ev = evalDay(dt.getFullYear(), dt.getMonth() + 1, dt.getDate(), { el: se }); if (!ev.off) nx.push(ev); } if (dt.getFullYear() > MAX_Y) break; }
+        while (nx.length < 5) { dt.setDate(dt.getDate() + 1); if (inRange(dt.getFullYear())) { var ev = evalDay(dt.getFullYear(), dt.getMonth() + 1, dt.getDate(), { el: se, code: code }); if (!ev.off) nx.push(ev); } if (dt.getFullYear() > MAX_Y) break; }
         var svc = "var(" + LV_VAR[sg.v.c] + ")";
         body += '<div class="minihero" style="--wc: var(' + LV_VAR[sx.lv] + ')">' + ico(sx.lv) + '<div><b>' + code + '：' + LEVELS[sx.lv].k + '</b> <span class="note">' + LEVELS[sx.lv].sub + ' · 指數 <span class="num">' + (sx.score >= 0 ? "+" : "") + sx.score.toFixed(2) + '</span></span><div style="font-size:13px">' + LEVELS[sx.lv].adv + '</div></div></div>' +
           '<dl class="kv" style="margin-top:10px"><dt>個股五行</dt><dd><span class="el-' + EL_CLS[se] + '">' + EL[se] + '</span>（尾數 ' + code.slice(-1) + '，河圖 ' + HETU[se] + '）</dd>' +
@@ -678,15 +693,17 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<div class="subh">洛書飛星<span>亮色為與主題同五行的星</span></div>' +
         '<div class="stars2"><div><div class="note" style="margin-bottom:4px">流年 ' + STAR_NAME[ys] + '入中（' + p.yy + '年）</div>' + starGrid(ys, sec) + '<div class="note" style="margin-top:4px">' + STAR_TXT[ys] + '</div></div>' +
         '<div><div class="note" style="margin-bottom:4px">流月 ' + STAR_NAME[ms] + '入中（' + gzStr(p.m) + '月）</div>' + starGrid(ms, sec) + '<div class="note" style="margin-top:4px">' + STAR_TXT[ms] + '</div></div></div>' +
-        '<div class="subh">數理<span>輔助，權重低於干支五行</span></div>' +
+        '<div class="subh">數理<span>已計入指數：河洛部分</span></div>' +
         '<dl class="kv"><dt>日期數根</dt><dd class="num">' + o.y + '/' + o.m + '/' + o.d + ' → ' + root + '（洛書' + ["", "坎", "坤", "震", "巽", "中", "乾", "兌", "艮", "離"][root] + '宮，' + EL[rEl] + '，' + relTxt(rEl) + '）</dd>' +
+        '<dt>河洛貢獻</dt><dd class="num">' + sgn(x.parts.he) + '（流年星 ' + STAR_NAME[ys] + '、流月星 ' + STAR_NAME[ms] + '、數根 ' + root + '）</dd>' +
         '<dt>三元九運</dt><dd>九運離火（2024–2043）：科技、AI、能源、傳媒題材偏旺，屬象徵性背景。</dd></dl>';
     }
     $("detail").style.borderLeft = "5px solid var(" + LV_VAR[x.lv] + ")";
     $("detail").innerHTML =
       '<div class="sectionhead"><h3>' + o.y + '/' + o.m + '/' + o.d + '（週' + WD[x.dow] + '）' + (x.off ? " 休市" : "") + '</h3><span style="color:var(' + LV_VAR[x.lv] + ');font-weight:700">' + LEVELS[x.lv].k + ' · ' + LEVELS[x.lv].sub + '</span></div>' +
       '<div class="note">農曆 ' + GAN[(x.ln.ly - 4) % 10] + ZHI[(x.ln.ly - 4) % 12] + '年（' + SHENGXIAO[(x.ln.ly - 4) % 12] + '）' + lunarName(x.ln) + (moonPhase(x.ln.ld) ? ' · ' + moonPhase(x.ln.ld) : '') + (x.hol ? ' · ' + x.hol.name : '') + '</div>' +
-      '<div class="note num">指數 ' + (x.score >= 0 ? "+" : "") + x.score.toFixed(2) + (jie ? '（今日交 ' + jie + '）' : "") + '</div>' +
+      '<div class="note num">指數 ' + sgn(x.score) + (jie ? '（今日交 ' + jie + '）' : "") + '</div>' +
+      '<div class="parts" aria-label="指數分解">' + [["干支五行", x.parts.base], ["卦象", x.parts.gua], ["河洛", x.parts.he], ["陰陽", x.parts.yy]].map(function (t) { return '<span class="part"><small>' + t[0] + '</small><b class="num" style="color:var(' + (t[1] > 0.005 ? "--w0" : t[1] < -0.005 ? "--w4" : "--muted") + ')">' + sgn(t[1]) + '</b></span>'; }).join("") + '</div>' +
       '<div class="dtabs" role="group" aria-label="分析類別">' +
       [["gz", "干支五行"], ["gua", "卦象"], ["he", "河洛理數"], ["stk", "股市"]].map(function (t) { return '<button data-dtab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>' + body;
   }
