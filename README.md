@@ -8,3 +8,8 @@
 3. 傳到手機安裝（需允許「安裝未知來源 App」）。
 
 此為 debug 簽章 APK，供自用；上架 Google Play 需另做 release 簽章。
+
+## GitHub Pages
+合併到預設分支（main）後，`Deploy Pages` 會把 `www/` 發佈成網站：
+`https://rboneone-png.github.io/year_HL/`
+若首次沒有自動啟用，到 Settings → Pages → Source 選 **GitHub Actions**。
