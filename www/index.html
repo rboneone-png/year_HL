@@ -184,6 +184,22 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .stars span.ctr { box-shadow: inset 0 0 0 2px var(--accent); }
 .hetu { width: 100%; max-width: 300px; display: block; margin: 0 auto; height: auto; }
 .hetu text { fill: var(--ink); font-family: var(--font-body); }
+
+.dtabs { grid-template-columns: repeat(4, 1fr) !important; }
+.dtabs button { font-size: 12px !important; }
+.stkadd { display: flex; gap: 8px; margin: 10px 0 8px; }
+.stkadd input { flex: 1; min-width: 0; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.stkadd button { border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 8px; padding: 0 14px; font-weight: 500; }
+.stkchips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.stkchips .chip { gap: 4px; }
+.stkchips .chip .x { border: 0; background: transparent; color: var(--muted); padding: 0 0 0 4px; font-size: 14px; line-height: 1; }
+.minihero { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--line); border-left: 4px solid var(--wc); border-radius: 8px; background: var(--surface2); }
+.minihero .ico { width: 42px; height: 42px; color: var(--wc); }
+.minihero b { font-family: var(--font-display); font-size: 18px; }
+.nxt { display: grid; grid-template-columns: 78px 26px 1fr auto; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.nxt:last-child { border-bottom: 0; }
+.nxt .ico { width: 24px; height: 24px; color: var(--wc); }
+.nxt .lv { color: var(--wc); font-weight: 700; font-size: 12px; }
 @media (max-width: 420px) {
   .detail-grid { grid-template-columns: 1fr; }
   .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
@@ -345,9 +361,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   };
   function triIdx(b) { for (var i = 0; i < 8; i++) if (TRI[i].bits === b) return i; return 0; }
   function hexOf(bits) { var lo = triIdx(bits.slice(0, 3).join("")), up = triIdx(bits.slice(3, 6).join("")); return { lo: lo, up: up, name: HEX[up][lo], bits: bits }; }
-  function cast(p) {
-    var sum = (p.y[1] + 1) + (p.m[1] + 1) + (p.d[1] + 1), HS = 6;      // 巳時 = 6
-    var up = (sum - 1) % 8, lo = (sum + HS - 1) % 8, mv = (sum + HS) % 6 || 6;
+  function castFrom(up, lo, mv) {
     var bits = (TRI[lo].bits + TRI[up].bits).split("").map(Number);
     var ben = hexOf(bits), hu = hexOf([bits[1], bits[2], bits[3], bits[2], bits[3], bits[4]]);
     var cb = bits.slice(); cb[mv - 1] = cb[mv - 1] ? 0 : 1;
@@ -360,6 +374,17 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     else if ((eT + 1) % 5 === eU) v = { t: "小凶", c: 3, d: "體生用（洩氣）" };
     else v = { t: "凶", c: 4, d: "用剋體" };
     return { ben: ben, hu: hu, bian: bian, mv: mv, ti: ti, yong: yong, v: v };
+  }
+  function cast(p) {
+    var sum = (p.y[1] + 1) + (p.m[1] + 1) + (p.d[1] + 1), HS = 6;      // 巳時 = 6
+    return castFrom((sum - 1) % 8, (sum + HS - 1) % 8, (sum + HS) % 6 || 6);
+  }
+  /* 個股：以代號數字起卦（前半為上卦、後半為下卦），動爻加入當日干支數，本卦不變、變卦逐日改變 */
+  var TAIL_EL = [2, 4, 1, 0, 3, 2, 4, 1, 0, 3];                      // 尾數 0–9 依河圖：1·6 水、2·7 火、3·8 木、4·9 金、5·10 土
+  function castStock(code, p) {
+    var h = Math.ceil(code.length / 2), a = +code.slice(0, h), b = +code.slice(h);
+    var dsum = (p.y[1] + 1) + (p.m[1] + 1) + (p.d[1] + 1);
+    return castFrom(((a % 8) || 8) - 1, ((b % 8) || 8) - 1, (a + b + dsum) % 6 || 6);
   }
   function hexHTML(bits, mv) {
     return '<div class="hexg">' + bits.map(function (b, i) { return '<span class="yao' + (mv === i + 1 ? " mv" : "") + '">' + (b ? '<i></i>' : '<i></i><i></i>') + '</span>'; }).join("") + '</div>';
@@ -415,20 +440,21 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     if (o.y > MAX_Y) return { y: MAX_Y, m: 12, d: 31 };
     return o;
   }
-  var state = { view: "month", sector: "tech", dtab: "gz", sel: clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }) };
+  var state = { view: "month", sector: "tech", dtab: "gz", stocks: ["2330"], stock: "2330", sel: clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }) };
   try {
     var saved = JSON.parse(localStorage.getItem("hl-state") || "{}");
     if (saved.view) state.view = saved.view;
     if (saved.dtab) state.dtab = saved.dtab;
+    if (saved.stocks && saved.stocks.length) { state.stocks = saved.stocks.filter(function (c) { return /^\d{2,6}$/.test(c); }).slice(0, 8); if (saved.stock && state.stocks.indexOf(saved.stock) >= 0) state.stock = saved.stock; else state.stock = state.stocks[0] || ""; }
     if (saved.sector && SECTORS.some(function (s) { return s.id === saved.sector; })) state.sector = saved.sector;
   } catch (e) {}
-  function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector, dtab: state.dtab })); } catch (e) {} }
+  function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector, dtab: state.dtab, stocks: state.stocks, stock: state.stock })); } catch (e) {} }
   function sector() { return SECTORS.filter(function (s) { return s.id === state.sector; })[0]; }
   function dim(y, m) { return new Date(y, m, 0).getDate(); }
-  function monthDays(y, m) { var a = [], n = dim(y, m), sec = sector(); for (var d = 1; d <= n; d++) a.push(evalDay(y, m, d, sec)); return a; }
-  function weekDays(o) {
+  function monthDays(y, m, sc) { var a = [], n = dim(y, m), sec = sc || sector(); for (var d = 1; d <= n; d++) a.push(evalDay(y, m, d, sec)); return a; }
+  function weekDays(o, sc) {
     var base = new Date(o.y, o.m - 1, o.d); base.setDate(base.getDate() - base.getDay());
-    var a = [], sec = sector();
+    var a = [], sec = sc || sector();
     for (var i = 0; i < 7; i++) { var t = new Date(base); t.setDate(base.getDate() + i); a.push(evalDay(t.getFullYear(), t.getMonth() + 1, t.getDate(), sec)); }
     return a;
   }
@@ -565,6 +591,33 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<dt>本卦 ' + g.ben.name + '</dt><dd>' + HINT[g.ben.name] + '</dd>' +
         '<dt>變卦 ' + g.bian.name + '</dt><dd>後續趨勢：' + HINT[g.bian.name] + '</dd></dl>' +
         '<p class="note" style="margin:8px 0 0">以年、月、日三柱地支數相加起卦，時辰取開盤的巳時，是梅花易數的變法，不用農曆。卦象只作輔助說明，不計入氣象指數。</p>';
+    } else if (tab === "stk") {
+      var chips = state.stocks.map(function (c) {
+        return '<span class="chip" style="--c: var(--accent)"><button data-stock="' + c + '" aria-pressed="' + (state.stock === c) + '" style="border:0;background:transparent;padding:0;font-weight:' + (state.stock === c ? 700 : 400) + '">' + c + '</button><button class="x" data-rmstock="' + c + '" aria-label="移除 ' + c + '">×</button></span>';
+      }).join("");
+      body += '<div class="stkadd"><input id="stkIn" inputmode="numeric" maxlength="6" placeholder="輸入股票代號，例如 2330" aria-label="股票代號"><button id="stkAdd">加入</button></div>' +
+        '<div class="stkchips">' + chips + '</div>';
+      if (!state.stock) {
+        body += '<p class="note">輸入 2 到 6 位數字的股票或 ETF 代號，會以代號起卦並算出個股的五行氣象。</p>';
+      } else {
+        var code = state.stock, se = TAIL_EL[+code.slice(-1)], sg = castStock(code, p), sx = evalDay(o.y, o.m, o.d, { el: se });
+        var rt = digitRoot(+code.split("").reduce(function (a, c) { return a + +c; }, 0)), rtName = ["", "坎", "坤", "震", "巽", "中", "乾", "兌", "艮", "離"][rt];
+        var md = monthDays(o.y, o.m, { el: se }), mAvg = avgDays(md), mLv = level(mAvg);
+        var nx = [], dt = new Date(o.y, o.m - 1, o.d);
+        while (nx.length < 5) { dt.setDate(dt.getDate() + 1); if (dt.getDay() > 0 && dt.getDay() < 6 && inRange(dt.getFullYear())) nx.push(evalDay(dt.getFullYear(), dt.getMonth() + 1, dt.getDate(), { el: se })); if (dt.getFullYear() > MAX_Y) break; }
+        var svc = "var(" + LV_VAR[sg.v.c] + ")";
+        body += '<div class="minihero" style="--wc: var(' + LV_VAR[sx.lv] + ')">' + ico(sx.lv) + '<div><b>' + code + '：' + LEVELS[sx.lv].k + '</b> <span class="note">' + LEVELS[sx.lv].sub + ' · 指數 <span class="num">' + (sx.score >= 0 ? "+" : "") + sx.score.toFixed(2) + '</span></span><div style="font-size:13px">' + LEVELS[sx.lv].adv + '</div></div></div>' +
+          '<dl class="kv" style="margin-top:10px"><dt>個股五行</dt><dd><span class="el-' + EL_CLS[se] + '">' + EL[se] + '</span>（尾數 ' + code.slice(-1) + '，河圖 ' + HETU[se] + '）</dd>' +
+          '<dt>代號數根</dt><dd class="num">' + code.split("").join("+") + ' → ' + rt + '（洛書' + rtName + '宮，<span class="el-' + EL_CLS[LUO_EL[rt]] + '">' + EL[LUO_EL[rt]] + '</span>）</dd>' +
+          '<dt>本月</dt><dd>' + LEVELS[mLv].k + ' · ' + LEVELS[mLv].sub + '（月平均 ' + (mAvg >= 0 ? "+" : "") + mAvg.toFixed(2) + '）</dd></dl>' +
+          '<div class="subh">個股卦象<span>本卦為本質，變卦隨日改變</span></div>' +
+          '<div class="hexrow">' + hexCard("本卦", sg.ben, sg.mv) + hexCard("互卦", sg.hu, 0) + hexCard("今日變卦", sg.bian, 0) + '</div>' +
+          '<dl class="kv" style="margin-top:10px"><dt>體用判斷</dt><dd><span class="verdict" style="--vc:' + svc + '">' + sg.v.t + '</span> ' + sg.v.d + '（體 ' + sg.ti.n + EL[sg.ti.el] + '，用 ' + sg.yong.n + EL[sg.yong.el] + '）</dd>' +
+          '<dt>本卦 ' + sg.ben.name + '</dt><dd>' + HINT[sg.ben.name] + '</dd><dt>變卦 ' + sg.bian.name + '</dt><dd>' + HINT[sg.bian.name] + '</dd></dl>' +
+          '<div class="subh">接下來 5 個交易日<span>以此股五行計算</span></div>' +
+          nx.map(function (e) { return '<div class="nxt" style="--wc: var(' + LV_VAR[e.lv] + ')"><span class="num" style="white-space:nowrap">' + e.m + '/' + e.d + ' 週' + WD[e.dow] + '</span>' + ico(e.lv) + '<span>日柱 ' + gzStr(e.p.d) + (e.tags.length ? ' · ' + e.tags[0] : '') + '</span><span class="lv">' + LEVELS[e.lv].sub + '</span></div>'; }).join("") +
+          '<p class="note" style="margin:10px 0 0">只用代號的數字做數理與起卦，沒有連線查股價，也不核對代號是否存在，更不代表公司的基本面。台股假日與休市日未計入，只排除週末。</p>';
+      }
     } else {
       var ys = yearStar(p.yy), ms = monthStar(p.y[1], (p.m[1] - 2 + 12) % 12), cnt2 = [0, 0, 0, 0, 0];
       [p.y, p.m, p.d].forEach(function (pl) { cnt2[GAN_EL[pl[0]]]++; cnt2[ZHI_EL[pl[1]]]++; });
@@ -592,7 +645,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       '<div class="sectionhead"><h3>' + o.y + '/' + o.m + '/' + o.d + '（週' + WD[x.dow] + '）' + (x.dow === 0 || x.dow === 6 ? " 休市" : "") + '</h3><span style="color:var(' + LV_VAR[x.lv] + ');font-weight:700">' + LEVELS[x.lv].k + ' · ' + LEVELS[x.lv].sub + '</span></div>' +
       '<div class="note num">指數 ' + (x.score >= 0 ? "+" : "") + x.score.toFixed(2) + (jie ? '（今日交 ' + jie + '）' : "") + '</div>' +
       '<div class="dtabs" role="group" aria-label="分析類別">' +
-      [["gz", "干支五行"], ["gua", "卦象"], ["he", "河洛理數"]].map(function (t) { return '<button data-dtab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>' + body;
+      [["gz", "干支五行"], ["gua", "卦象"], ["he", "河洛理數"], ["stk", "股市"]].map(function (t) { return '<button data-dtab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>' + body;
   }
 
   function render() {
@@ -613,9 +666,19 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   function nextTarget() { return shifted(1); }
 
   /* ---------- 事件 ---------- */
+  function addStock() {
+    var el = $("stkIn"), v = (el && el.value || "").replace(/\D/g, "");
+    if (v.length < 2) { if (el) { el.value = ""; el.placeholder = "請輸入 2 到 6 位數字"; el.focus(); } return; }
+    if (state.stocks.indexOf(v) < 0) state.stocks.unshift(v);
+    state.stocks = state.stocks.slice(0, 8); state.stock = v; save(); setDetail(state.sel);
+  }
+  document.addEventListener("keydown", function (e) { if (e.key === "Enter" && e.target && e.target.id === "stkIn") { e.preventDefault(); addStock(); } });
   document.addEventListener("click", function (e) {
     var b = e.target.closest("button"); if (!b) return;
-    if (b.dataset.dtab) { state.dtab = b.dataset.dtab; save(); setDetail(state.sel); }
+    if (b.id === "stkAdd") { addStock(); }
+    else if (b.dataset.stock) { state.stock = b.dataset.stock; save(); setDetail(state.sel); }
+    else if (b.dataset.rmstock) { state.stocks = state.stocks.filter(function (c) { return c !== b.dataset.rmstock; }); if (state.stock === b.dataset.rmstock) state.stock = state.stocks[0] || ""; save(); setDetail(state.sel); }
+    else if (b.dataset.dtab) { state.dtab = b.dataset.dtab; save(); setDetail(state.sel); }
     else if (b.dataset.view) { state.view = b.dataset.view; save(); render(); }
     else if (b.dataset.sec) { state.sector = b.dataset.sec; save(); render(); }
     else if (b.id === "prev") { var t = prevTarget(); if (t) { state.sel = t; render(); } }
@@ -626,6 +689,6 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     else if (b.dataset.date) { var q = b.dataset.date.split("-"); state.sel = { y: +q[0], m: +q[1], d: +q[2] }; viewWeek(); }
   });
   render();
-  window.__hl = { cast: cast, HEX: HEX, HINT: HINT, yearStar: yearStar, monthStar: monthStar, pillars: pillars, evalDay: evalDay, level: level, sectors: SECTORS };
+  window.__hl = { cast: cast, castStock: castStock, TAIL_EL: TAIL_EL, HEX: HEX, HINT: HINT, yearStar: yearStar, monthStar: monthStar, pillars: pillars, evalDay: evalDay, level: level, sectors: SECTORS };
 })();
 </script>
