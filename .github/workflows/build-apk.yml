@@ -26,6 +26,11 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: Fix signing key and version
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: ./scripts/patch-android.sh ${{ github.run_number }}
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
