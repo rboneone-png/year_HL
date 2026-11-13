@@ -226,6 +226,16 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .dayl .g { color: var(--w0); border-color: var(--w0); }
 .dayl .r { color: var(--w4); border-color: var(--w4); }
 .mcell.lun .ico { grid-row: span 3; }
+
+.sectionhead[data-tg], .subh[data-tg] { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+.sectionhead h3 { display: flex; align-items: center; }
+.chev { display: inline-block; width: 18px; line-height: 1; color: var(--muted); font-family: var(--font-body); font-size: 13px; transition: transform .15s; }
+.collapsed > .sectionhead .chev, .subh.sc .chev { transform: rotate(-90deg); }
+.card.collapsed > .sectionhead { margin-bottom: 0; }
+.card.collapsed > .cbody, .sbody.sc { display: none; }
+.subh .lbl { display: inline-flex; align-items: center; }
+.allbar { display: flex; gap: 8px; justify-content: flex-end; }
+.allbar button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: 12px; color: var(--muted); }
 @media (max-width: 420px) {
   .detail-grid { grid-template-columns: 1fr; }
   .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
@@ -248,6 +258,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       <button id="v-week" data-view="week" aria-pressed="false">週</button>
     </div>
     <div class="sectors" id="sectors" role="group" aria-label="投資主題"></div>
+    <div class="allbar"><button data-all="open">全部展開</button><button data-all="close">全部收合</button></div>
     <div class="calsw"><span>評估曆法</span><div class="seg two" role="group" aria-label="評估曆法"><button data-cal="lunar" aria-pressed="true">農曆</button><button data-cal="jie" aria-pressed="false">節氣</button></div></div>
     <div class="nav">
       <button id="prev" aria-label="上一期">‹</button>
@@ -264,7 +275,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 
   <section class="card" id="detail"></section>
 
-  <section class="card">
+  <section class="card" id="legendCard">
     <div class="sectionhead"><h3>氣象圖例</h3><span>依所選主題的五行計算</span></div>
     <div class="legend" id="legend"></div>
     <p class="note" style="margin:10px 0 0">以國曆日期對照農曆顯示。評估曆法可選「農曆」（春節換年柱、月柱依農曆月，正月為寅月）或「節氣」（立春換年柱、月柱依十二節，即八字排法）；日柱兩者相同。農曆資料為內建查表，涵蓋 2024–2036 年。分數由天干地支五行對所選主題的生剋關係加權而成，另計六沖與九運（2024–2043 離火運）背景。指數由四部分相加：干支五行（主）、卦象（體用吉凶與用卦生剋，約 ±0.4）、河洛（流年星、流月星、日期數根與星的吉凶，約 ±0.3）、陰陽（天干地支的陰陽：氣勢、日柱干支配合、三柱全陽或全陰的物極必反，約 ±0.2）。年、月、週與詳情卡都列出分解，個股用個股自己的卦。這是象徵性的術數參考，不是投資建議，也不保證報酬。實際投資請搭配基本面、技術面與個人風險承受度，不要重押或借錢投資。</p>
@@ -513,16 +524,17 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     if (o.y > MAX_Y) return { y: MAX_Y, m: 12, d: 31 };
     return o;
   }
-  var state = { view: "month", sector: "tech", cal: "lunar", dtab: "gz", stocks: ["2330"], stock: "2330", sel: clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }) };
+  var state = { view: "month", sector: "tech", cal: "lunar", col: {}, dtab: "gz", stocks: ["2330"], stock: "2330", sel: clampDate({ y: todayKey.y, m: todayKey.m, d: todayKey.d }) };
   try {
     var saved = JSON.parse(localStorage.getItem("hl-state") || "{}");
     if (saved.view) state.view = saved.view;
     if (saved.dtab) state.dtab = saved.dtab;
+    if (saved.col && typeof saved.col === "object") state.col = saved.col;
     if (saved.cal === "lunar" || saved.cal === "jie") state.cal = saved.cal;
     if (saved.stocks && saved.stocks.length) { state.stocks = saved.stocks.filter(function (c) { return /^\d{2,6}$/.test(c); }).slice(0, 8); if (saved.stock && state.stocks.indexOf(saved.stock) >= 0) state.stock = saved.stock; else state.stock = state.stocks[0] || ""; }
     if (saved.sector && SECTORS.some(function (s) { return s.id === saved.sector; })) state.sector = saved.sector;
   } catch (e) {}
-  function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector, cal: state.cal, dtab: state.dtab, stocks: state.stocks, stock: state.stock })); } catch (e) {} }
+  function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector, cal: state.cal, col: state.col, dtab: state.dtab, stocks: state.stocks, stock: state.stock })); } catch (e) {} }
   function sector() { return SECTORS.filter(function (s) { return s.id === state.sector; })[0]; }
   function dim(y, m) { return new Date(y, m, 0).getDate(); }
   function monthDays(y, m, sc) { var a = [], n = dim(y, m), sec = sc || sector(); for (var d = 1; d <= n; d++) a.push(evalDay(y, m, d, sec)); return a; }
@@ -593,10 +605,10 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     return '<div class="chartwrap"><svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">' + grid + bars + '</svg></div>';
   }
   function itemCells(items, lun) {
-    return '<div class="months">' + items.map(function (x) {
+    return '<div class="card"><div class="sectionhead"><h3>' + (lun ? "農曆月份" : "國曆月份") + '</h3><span>點選可進入該月</span></div><div class="months">' + items.map(function (x) {
       var lv = level(x.avg);
       return '<button class="mcell' + (lun ? " lun" : "") + '" ' + x.attr + style(lv) + (x.cur ? ' aria-current="true"' : "") + '><b>' + x.name + '</b>' + ico(lv) + '<small>' + LEVELS[lv].k + ' · ' + LEVELS[lv].sub + ' · ' + sgn(x.avg) + '</small>' + (x.rng ? '<small>' + x.rng + '</small>' : "") + '</button>';
-    }).join("") + '</div>';
+    }).join("") + '</div></div>';
   }
   function itemTable(items) {
     return '<div class="chartwrap"><table class="ptable"><thead><tr><th>月</th><th>干支</th><th>卦象</th><th>河洛</th><th>陰陽</th><th>合計</th></tr></thead><tbody>' + items.map(function (x) {
@@ -640,6 +652,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       '<div class="card"><div class="sectionhead"><h3>農曆逐月分解</h3><span>各農曆月工作日平均</span></div>' + itemTable(lm) + '</div>' +
       itemCells(lm, true);
     setDetail(state.sel);
+    enhanceAll();
   }
 
   function viewMonth() {
@@ -661,6 +674,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     });
     $("body").innerHTML = partsCard(m + ' 月指數分解', '本月工作日平均', avgParts(ds)) + '<div class="card"><div class="sectionhead"><h3>逐日氣象</h3><span>灰底為休市日</span></div><div class="dow">' + WD.map(function (w) { return "<span>" + w + "</span>"; }).join("") + '</div><div class="grid7">' + cells + '</div></div>';
     setDetail(state.sel);
+    enhanceAll();
   }
 
   function viewWeek() {
@@ -681,6 +695,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<div class="lv">' + LEVELS[x.lv].sub + '</div></button>';
     }).join("") + '</div></div>';
     setDetail(state.sel);
+    enhanceAll();
   }
 
   function setDetail(o) {
@@ -789,6 +804,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<dt>三元九運</dt><dd>九運離火（2024–2043）：科技、AI、能源、傳媒題材偏旺，屬象徵性背景。</dd></dl>';
     }
     $("detail").style.borderLeft = "5px solid var(" + LV_VAR[x.lv] + ")";
+    $("detail").removeAttribute("data-e");
     $("detail").innerHTML =
       '<div class="sectionhead"><h3>' + o.y + '/' + o.m + '/' + o.d + '（週' + WD[x.dow] + '）' + (x.off ? " 休市" : "") + '</h3><span style="color:var(' + LV_VAR[x.lv] + ');font-weight:700">' + LEVELS[x.lv].k + ' · ' + LEVELS[x.lv].sub + '</span></div>' +
       '<div class="note">農曆 ' + GAN[(x.ln.ly - 4) % 10] + ZHI[(x.ln.ly - 4) % 12] + '年（' + SHENGXIAO[(x.ln.ly - 4) % 12] + '）' + lunarName(x.ln) + (moonPhase(x.ln.ld) ? ' · ' + moonPhase(x.ln.ld) : '') + (x.hol ? ' · ' + x.hol.name : '') + '</div>' +
@@ -796,6 +812,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       partsHTML(x.parts) +
       '<div class="dtabs" role="group" aria-label="分析類別">' +
       [["gz", "干支五行"], ["yy", "陰陽"], ["gua", "卦象"], ["he", "河洛"], ["stk", "股市"]].map(function (t) { return '<button data-dtab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>' + body;
+    enhanceCard($("detail")); enhanceSubs($("detail"));
   }
 
   /* ---------- 綜合解讀：把四部分術數融入操作建議 ---------- */
@@ -826,17 +843,64 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     var asc = items.slice().sort(function (a, b) { return b.s - a.s; });
     var good = asc.slice(0, 3).filter(function (i) { return i.s >= 0.3; }), bad = asc.slice().reverse().slice(0, 3).filter(function (i) { return i.s <= -0.25; });
     var pick = function (arr, cls) { return arr.length ? arr.map(function (i) { return '<span class="' + cls + ' num">' + i.l + ' ' + sgn(i.s) + '</span>'; }).join("") : '<span>無明顯日子</span>'; };
-    $("synth").innerHTML = '<h3>綜合解讀 · ' + scope + '</h3>' +
+    $("synth").removeAttribute("data-e");
+    $("synth").innerHTML = '<div class="sectionhead"><h3>綜合解讀 · ' + scope + '</h3></div>' +
       '<p><b>' + L.k + '（' + L.sub + '）</b>：' + why + '。</p>' +
       '<div class="alloc"><div><small>' + sec.name + ' 占權益部位</small><b>' + A.eq + '</b></div><div><small>現金水位</small><b>' + A.cash + '</b></div></div>' +
       '<p>' + A.act + '進出皆分批，並先設好停損。</p>' +
       '<p style="margin-bottom:2px">' + (state.view === "year" ? "較強的月份" : "加碼參考") + '</p><div class="dayl">' + pick(good, "g") + '</div>' +
       '<p style="margin:8px 0 2px">' + (state.view === "year" ? "較弱的月份" : "減碼或觀望") + '</p><div class="dayl">' + pick(bad, "r") + '</div>';
+    enhanceCard($("synth"));
+  }
+  /* ---------- 展開與收合 ---------- */
+  function applyCol(el, key) { var c = !!state.col[key]; el.classList.toggle("collapsed", c && el.classList.contains("card")); el.classList.toggle("sc", c && !el.classList.contains("card")); el.setAttribute("aria-expanded", c ? "false" : "true"); var nx = el.nextElementSibling; if (!el.classList.contains("card") && nx && nx.classList.contains("sbody")) nx.classList.toggle("sc", c); }
+  function enhanceCard(card) {
+    if (!card || card.getAttribute("data-e")) return;
+    var head = card.querySelector(":scope > .sectionhead"); if (!head) return;
+    var h3 = head.querySelector("h3"), key = card.id || (state.view + ":" + h3.textContent.replace(/\d+/g, "#"));
+    var body = document.createElement("div"); body.className = "cbody";
+    while (head.nextSibling) body.appendChild(head.nextSibling);
+    card.appendChild(body);
+    var chev = document.createElement("span"); chev.className = "chev"; chev.textContent = "▾"; chev.setAttribute("aria-hidden", "true"); h3.insertBefore(chev, h3.firstChild);
+    head.setAttribute("role", "button"); head.tabIndex = 0; head.setAttribute("data-tg", key);
+    card.setAttribute("data-e", "1");
+    var c = !!state.col[key]; card.classList.toggle("collapsed", c); head.setAttribute("aria-expanded", c ? "false" : "true");
+  }
+  function enhanceSubs(root) {                          // 詳情卡內的小節（.subh）也可收合
+    var body = root.querySelector(":scope > .cbody"); if (!body || body.getAttribute("data-s")) return;
+    body.setAttribute("data-s", "1");
+    var kids = Array.prototype.slice.call(body.children), cur = null;
+    kids.forEach(function (k) {
+      if (k.classList.contains("subh")) {
+        var lbl = document.createElement("span"); lbl.className = "lbl";
+        var chev = document.createElement("span"); chev.className = "chev"; chev.textContent = "▾"; chev.setAttribute("aria-hidden", "true"); lbl.appendChild(chev);
+        var t = k.firstChild; if (t && t.nodeType === 3) lbl.appendChild(t); k.insertBefore(lbl, k.firstChild);
+        var key = "sub:" + state.dtab + ":" + lbl.textContent.replace(/[▾\d]+/g, "#");
+        k.setAttribute("data-tg", key); k.setAttribute("role", "button"); k.tabIndex = 0;
+        cur = document.createElement("div"); cur.className = "sbody"; body.insertBefore(cur, k.nextSibling);
+        var c = !!state.col[key]; k.classList.toggle("sc", c); cur.classList.toggle("sc", c); k.setAttribute("aria-expanded", c ? "false" : "true");
+      } else if (cur && !k.classList.contains("sbody")) { cur.appendChild(k); }
+    });
+  }
+  function enhanceAll() { Array.prototype.forEach.call(document.querySelectorAll(".card"), enhanceCard); }
+  function toggleHead(h) {
+    var key = h.getAttribute("data-tg"); state.col[key] = !state.col[key]; var c = !!state.col[key];
+    if (h.classList.contains("subh")) { h.classList.toggle("sc", c); var nx = h.nextElementSibling; if (nx && nx.classList.contains("sbody")) nx.classList.toggle("sc", c); }
+    else h.parentNode.classList.toggle("collapsed", c);
+    h.setAttribute("aria-expanded", c ? "false" : "true"); save();
+  }
+  function setAll(open) {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tg]"), function (h) { state.col[h.getAttribute("data-tg")] = !open; var c = !open;
+      if (h.classList.contains("subh")) { h.classList.toggle("sc", c); var nx = h.nextElementSibling; if (nx && nx.classList.contains("sbody")) nx.classList.toggle("sc", c); }
+      else h.parentNode.classList.toggle("collapsed", c);
+      h.setAttribute("aria-expanded", c ? "false" : "true"); });
+    save();
   }
   function render() {
     renderControls();
     if (state.view === "year") viewYear(); else if (state.view === "week") viewWeek(); else viewMonth();
     renderSynth();
+    enhanceAll();
     var atMin = state.sel.y <= MIN_Y && (state.view === "year" || (state.view === "month" && state.sel.m === 1) || (state.view === "week" && weekDays(state.sel)[0].y < MIN_Y));
     $("prev").disabled = prevTarget() === null;
     $("next").disabled = nextTarget() === null;
@@ -858,9 +922,12 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     if (state.stocks.indexOf(v) < 0) state.stocks.unshift(v);
     state.stocks = state.stocks.slice(0, 8); state.stock = v; save(); setDetail(state.sel);
   }
-  document.addEventListener("keydown", function (e) { if (e.key === "Enter" && e.target && e.target.id === "stkIn") { e.preventDefault(); addStock(); } });
+  document.addEventListener("keydown", function (e) {
+    if ((e.key === "Enter" || e.key === " ") && e.target && e.target.getAttribute && e.target.getAttribute("data-tg")) { e.preventDefault(); toggleHead(e.target); return; } if (e.key === "Enter" && e.target && e.target.id === "stkIn") { e.preventDefault(); addStock(); } });
   document.addEventListener("click", function (e) {
+    var hd = e.target.closest("[data-tg]"); if (hd) { toggleHead(hd); return; }
     var b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.all) { setAll(b.dataset.all === "open"); return; }
     if (b.id === "stkAdd") { addStock(); }
     else if (b.dataset.stock) { state.stock = b.dataset.stock; save(); setDetail(state.sel); }
     else if (b.dataset.rmstock) { state.stocks = state.stocks.filter(function (c) { return c !== b.dataset.rmstock; }); if (state.stock === b.dataset.rmstock) state.stock = state.stocks[0] || ""; save(); setDetail(state.sel); }
