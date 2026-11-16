@@ -16,7 +16,7 @@
 
 ## 直接下載 APK
 合併到 main 後，最新 APK 會放在 Releases：
-https://github.com/rboneone-png/year_HL/releases/download/latest/heluo-invest.apk
+https://github.com/rboneone-png/year_HL/releases/latest （檔名為 `heluo-invest-v1.0.版本號.apk`，版本號與 versionCode 相同）
 
 ## 覆蓋更新
 手機要能直接覆蓋安裝新版，每次建置必須用同一把簽章金鑰，且 versionCode 要遞增。
