@@ -236,6 +236,13 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
 .subh .lbl { display: inline-flex; align-items: center; }
 .allbar { display: flex; gap: 8px; justify-content: flex-end; }
 .allbar button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: 12px; color: var(--muted); }
+.parts.v5 { grid-template-columns: repeat(5, 1fr); }
+.parts.v1 { grid-template-columns: 1fr; }
+.parts.v1 b { font-size: 15px; }
+#stockbar:empty { display: none; }
+#stockbar { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px; }
+#stockbar .stkadd { margin-top: 0; }
+#stockbar .note { margin: 0 0 6px; }
 @media (max-width: 420px) {
   .detail-grid { grid-template-columns: 1fr; }
   .wrow { grid-template-columns: 50px 28px 1fr 48px; gap: 8px; }
@@ -258,6 +265,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       <button id="v-week" data-view="week" aria-pressed="false">週</button>
     </div>
     <div class="sectors" id="sectors" role="group" aria-label="投資主題"></div>
+    <div id="stockbar"></div>
     <div class="allbar"><button data-all="open">全部展開</button><button data-all="close">全部收合</button></div>
     <div class="calsw"><span>評估曆法</span><div class="seg two" role="group" aria-label="評估曆法"><button data-cal="lunar" aria-pressed="true">農曆</button><button data-cal="jie" aria-pressed="false">節氣</button></div></div>
     <div class="nav">
@@ -398,6 +406,11 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     var yyS = yyQ + yyD + yyX;
     sc += guaS + heS + yyS;
     var parts = { base: base, gua: guaS, he: heS, yy: yyS, yang: yang, yyd: { q: yyQ, d: yyD, x: yyX, dayYang: dayYang, pol: pol } };
+    if (sec.mode === "gua") {                              // 個股卦象模式：體用吉、小吉、平、小凶、凶 直接對應晴、晴時多雲、多雲、陰雨、雷雨
+      sc = [1, 0.5, 0, -0.5, -1][gq.v.c];
+      parts.base = 0; parts.he = 0; parts.yy = 0; parts.gua = sc;
+      tags = [gq.ben.name + "卦 " + gq.v.t + "（" + gq.v.d + "）"];
+    }
     var off = dow === 0 || dow === 6 || !!(hol && hol.off);
     if (hol && hol.off && dow > 0 && dow < 6) tags.push(hol.name + "（休市，以公告為準）");
     return { p: p, score: sc, lv: level(sc), tags: tags, y: y, m: m, d: d, dow: dow, ln: ln, hol: hol, off: off, parts: parts, gq: gq };
@@ -462,12 +475,12 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     var sum = (p.y[1] + 1) + ln.lm + ln.ld, HS = 6;      // 巳時 = 6
     return castFrom((sum - 1) % 8, (sum + HS - 1) % 8, (sum + HS) % 6 || 6);
   }
-  /* 個股：以代號數字起卦（前半為上卦、後半為下卦），動爻加入當日干支數，本卦不變、變卦逐日改變 */
+  /* 個股：上卦 = 代號前半數 + 當日數，下卦 = 代號後半數 + 當日數 + 農曆日（相當於傳統的加時），當日數 = 年支數 + 農曆月 + 農曆日；動爻 = 總和除以 6 取餘；每天重新起卦 */
   var TAIL_EL = [2, 4, 1, 0, 3, 2, 4, 1, 0, 3];                      // 尾數 0–9 依河圖：1·6 水、2·7 火、3·8 木、4·9 金、5·10 土
   function castStock(code, p, ln) {
     var h = Math.ceil(code.length / 2), a = +code.slice(0, h), b = +code.slice(h);
     var dsum = (p.y[1] + 1) + ln.lm + ln.ld;
-    return castFrom(((a % 8) || 8) - 1, ((b % 8) || 8) - 1, (a + b + dsum) % 6 || 6);
+    return castFrom((((a + dsum) % 8) || 8) - 1, (((b + dsum + ln.ld) % 8) || 8) - 1, (a + b + dsum + ln.ld) % 6 || 6);
   }
   function hexHTML(bits, mv) {
     return '<div class="hexg">' + bits.map(function (b, i) { return '<span class="yao' + (mv === i + 1 ? " mv" : "") + '">' + (b ? '<i></i>' : '<i></i><i></i>') + '</span>'; }).join("") + '</div>';
@@ -532,10 +545,17 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     if (saved.col && typeof saved.col === "object") state.col = saved.col;
     if (saved.cal === "lunar" || saved.cal === "jie") state.cal = saved.cal;
     if (saved.stocks && saved.stocks.length) { state.stocks = saved.stocks.filter(function (c) { return /^\d{2,6}$/.test(c); }).slice(0, 8); if (saved.stock && state.stocks.indexOf(saved.stock) >= 0) state.stock = saved.stock; else state.stock = state.stocks[0] || ""; }
-    if (saved.sector && SECTORS.some(function (s) { return s.id === saved.sector; })) state.sector = saved.sector;
+    if (saved.sector && (saved.sector === "stock" || SECTORS.some(function (s) { return s.id === saved.sector; }))) state.sector = saved.sector;
   } catch (e) {}
   function save() { try { localStorage.setItem("hl-state", JSON.stringify({ view: state.view, sector: state.sector, cal: state.cal, col: state.col, dtab: state.dtab, stocks: state.stocks, stock: state.stock })); } catch (e) {} }
-  function sector() { return SECTORS.filter(function (s) { return s.id === state.sector; })[0]; }
+  function isGuaMode() { return state.sector === "stock"; }
+  function sector() {
+    if (state.sector === "stock") {                      // 個股卦象：氣象直接依該股卦象的體用判斷
+      var code = state.stock || state.stocks[0] || "2330";
+      return { id: "stock", name: "個股 " + code, el: TAIL_EL[+code.slice(-1)], ind: "依代號起卦，氣象取體用吉凶", mode: "gua", code: code };
+    }
+    return SECTORS.filter(function (s) { return s.id === state.sector; })[0];
+  }
   function dim(y, m) { return new Date(y, m, 0).getDate(); }
   function monthDays(y, m, sc) { var a = [], n = dim(y, m), sec = sc || sector(); for (var d = 1; d <= n; d++) a.push(evalDay(y, m, d, sec)); return a; }
   function weekDays(o, sc) {
@@ -563,6 +583,18 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   function partsHTML(pt) {
     return '<div class="parts" aria-label="指數分解">' + PART_NAMES.map(function (k) { return '<span class="part"><small>' + k[1] + '</small><b class="num" style="color:' + pcol(pt[k[0]]) + '">' + sgn(pt[k[0]]) + '</b></span>'; }).join("") + '</div>';
   }
+  function vcounts(days) {
+    var t = days.filter(function (x) { return !x.off; }); if (!t.length) t = days;
+    var c = [0, 0, 0, 0, 0]; t.forEach(function (x) { c[x.gq.v.c]++; }); return c;
+  }
+  var VNAMES = ["吉", "小吉", "平", "小凶", "凶"];
+  function verdictHTML(c) {
+    return '<div class="parts v5" aria-label="體用判斷分布">' + VNAMES.map(function (n, i) { return '<span class="part"><small>' + n + '</small><b class="num" style="color:var(' + LV_VAR[i] + ')">' + c[i] + ' 天</b></span>'; }).join("") + '</div>';
+  }
+  function statsCard(title, sub, days, pt) {
+    if (isGuaMode()) return '<div class="card"><div class="sectionhead"><h3>' + title.replace("指數分解", "體用判斷分布") + '</h3><span>' + sub + '</span></div>' + verdictHTML(vcounts(days)) + '</div>';
+    return partsCard(title, sub, pt);
+  }
   function partsCard(title, sub, pt) {
     return '<div class="card"><div class="sectionhead"><h3>' + title + '</h3><span>' + sub + '</span></div>' + partsHTML(pt) + '</div>';
   }
@@ -576,7 +608,16 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     ["year", "month", "week"].forEach(function (v) { $("v-" + v).setAttribute("aria-pressed", state.view === v ? "true" : "false"); });
     $("sectors").innerHTML = SECTORS.map(function (s) {
       return '<button class="chip" data-sec="' + s.id + '" aria-pressed="' + (state.sector === s.id) + '" style="--c: var(' + EL_VAR[s.el] + ')"><i></i>' + s.name + '<span class="el-' + EL_CLS[s.el] + '">' + EL[s.el] + '</span></button>';
-    }).join("");
+    }).join("") + '<button class="chip" data-sec="stock" aria-pressed="' + isGuaMode() + '" style="--c: var(--accent)"><i></i>個股卦象<span style="color:var(--accent)">卦</span></button>';
+    var bar = "";
+    if (isGuaMode()) {
+      bar = '<p class="note">逐日氣象改用個股卦象的體用判斷：吉為晴、小吉為晴時多雲、平為多雲、小凶為陰雨、凶為雷雨。</p>' +
+        '<div class="stkadd"><input id="stkBarIn" inputmode="numeric" maxlength="6" placeholder="輸入股票代號，例如 2330" aria-label="股票代號"><button id="stkBarAdd">加入</button></div>' +
+        '<div class="stkchips">' + state.stocks.map(function (c) {
+          return '<span class="chip" style="--c: var(--accent)"><button data-stock="' + c + '" aria-pressed="' + (sector().code === c) + '" style="border:0;background:transparent;padding:0;font-weight:' + (sector().code === c ? 700 : 400) + '">' + c + '</button><button class="x" data-rmstock="' + c + '" aria-label="移除 ' + c + '">×</button></span>';
+        }).join("") + '</div>';
+    }
+    $("stockbar").innerHTML = bar;
     $("legend").innerHTML = LEVELS.map(function (l, i) { return '<span style="color: var(' + LV_VAR[i] + ')">' + ico(i) + '<span style="color: var(--ink)">' + l.k + '（' + l.sub + '）</span></span>'; }).join("");
   }
 
@@ -611,6 +652,12 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     }).join("") + '</div></div>';
   }
   function itemTable(items) {
+    if (isGuaMode()) {
+      return '<div class="chartwrap"><table class="ptable"><thead><tr><th>月</th>' + VNAMES.map(function (n) { return '<th>' + n + '</th>'; }).join("") + '<th>平均</th></tr></thead><tbody>' + items.map(function (x) {
+        var c = vcounts(x.days);
+        return '<tr><td>' + x.name + '</td>' + c.map(function (n, i) { return '<td class="num" style="color:' + (n ? 'var(' + LV_VAR[i] + ')' : 'var(--muted)') + '">' + n + '</td>'; }).join("") + '<td class="num"><b>' + sgn(x.avg) + '</b></td></tr>';
+      }).join("") + '</tbody></table></div>';
+    }
     return '<div class="chartwrap"><table class="ptable"><thead><tr><th>月</th><th>干支</th><th>卦象</th><th>河洛</th><th>陰陽</th><th>合計</th></tr></thead><tbody>' + items.map(function (x) {
       var pt = avgParts(x.days);
       return '<tr><td>' + x.name + '</td>' + PART_NAMES.map(function (k) { return '<td class="num" style="color:' + pcol(pt[k[0]]) + '">' + sgn(pt[k[0]]) + '</td>'; }).join("") + '<td class="num"><b>' + sgn(x.avg) + '</b></td></tr>';
@@ -644,7 +691,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     var f = lm.length ? lm[0].days[0] : null, l = lm.length ? lm[lm.length - 1].days[lm[lm.length - 1].days.length - 1] : null;
     $("body").innerHTML =
       '<div class="card"><div class="sectionhead"><h3>國曆逐月氣象</h3><span>' + y + '/1–12 · 年均 ' + sgn(yAvg) + '</span></div>' + barChart(ms, "國曆十二個月的投資氣象指數長條圖") + '</div>' +
-      partsCard(y + ' 年指數分解', '國曆 12 個月平均再平均', yr.parts) +
+      statsCard(y + ' 年指數分解', isGuaMode() ? '全年工作日' : '國曆 12 個月平均再平均', [].concat.apply([], ms.map(function (x) { return x.days; })), yr.parts) +
       '<div class="card"><div class="sectionhead"><h3>國曆逐月分解</h3><span>各月工作日平均</span></div>' + itemTable(ms) + '</div>' +
       itemCells(ms, false) +
       '<div class="card"><div class="sectionhead"><h3>農曆逐月氣象</h3><span>' + (f ? f.m + '/' + f.d + ' 至 ' + l.y + '/' + l.m + '/' + l.d + ' · 年均 ' + sgn(lr.avg) : '') + '</span></div>' +
@@ -672,7 +719,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       var cls = "dcell" + (off ? " off" : "") + (sameDay(x, state.sel) ? " sel" : "") + (sameDay(x, todayKey) ? " today" : "");
       cells += '<button class="' + cls + '" data-day="' + x.d + '"' + style(x.lv) + ' aria-label="' + m + '月' + x.d + '日 ' + LEVELS[x.lv].k + '"><span class="d num">' + x.d + '</span>' + ico(x.lv) + '<span class="gz">' + lunarShort(x.ln) + '</span>' + (jie ? '<span class="jie">' + jie + '</span>' : "") + '</button>';
     });
-    $("body").innerHTML = partsCard(m + ' 月指數分解', '本月工作日平均', avgParts(ds)) + '<div class="card"><div class="sectionhead"><h3>逐日氣象</h3><span>灰底為休市日</span></div><div class="dow">' + WD.map(function (w) { return "<span>" + w + "</span>"; }).join("") + '</div><div class="grid7">' + cells + '</div></div>';
+    $("body").innerHTML = statsCard(m + ' 月指數分解', isGuaMode() ? '本月工作日' : '本月工作日平均', ds, avgParts(ds)) + '<div class="card"><div class="sectionhead"><h3>逐日氣象</h3><span>灰底為休市日</span></div><div class="dow">' + WD.map(function (w) { return "<span>" + w + "</span>"; }).join("") + '</div><div class="grid7">' + cells + '</div></div>';
     setDetail(state.sel);
     enhanceAll();
   }
@@ -685,7 +732,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     var work = ds.filter(function (x) { return !x.off; }); if (!work.length) work = ds;
     var best = work.slice().sort(function (a, b) { return b.score - a.score; })[0], worst = work.slice().sort(function (a, b) { return a.score - b.score; })[0];
     renderHero("本週", f.m + "/" + f.d + "–" + l.m + "/" + l.d, avg, '<span class="tag">較佳 週' + WD[best.dow] + '</span><span class="tag">較弱 週' + WD[worst.dow] + '</span>');
-    $("body").innerHTML = partsCard('本週指數分解', '本週工作日平均', avgParts(ds)) + '<div class="card"><div class="sectionhead"><h3>逐日氣象</h3><span>條形：指數 −1.2 至 +1.2</span></div><div class="wlist">' + ds.map(function (x) {
+    $("body").innerHTML = statsCard('本週指數分解', isGuaMode() ? '本週工作日' : '本週工作日平均', ds, avgParts(ds)) + '<div class="card"><div class="sectionhead"><h3>逐日氣象</h3><span>條形：指數 −1.2 至 +1.2</span></div><div class="wlist">' + ds.map(function (x) {
       var off = x.off;
       var v = Math.max(-1.2, Math.min(1.2, x.score)), w = Math.abs(v) / 1.2 * 50, left = v >= 0 ? 50 : 50 - w;
       var jie = jieOn(x.y, x.m, x.d);
@@ -739,7 +786,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<div class="subh">對指數的貢獻<span>已計入氣象指數</span></div>' +
         '<dl class="kv"><dt>氣勢</dt><dd class="num">' + sgn(pd.q) + '</dd><dt>日柱配合</dt><dd class="num">' + sgn(pd.d) + '</dd><dt>物極必反</dt><dd class="num">' + sgn(pd.x) + '</dd><dt>陰陽合計</dt><dd class="num"><b>' + sgn(x.parts.yy) + '</b></dd></dl>';
     } else if (tab === "gua") {
-      var g = cast(p, x.ln), vc = "var(" + LV_VAR[g.v.c] + ")";
+      var g = x.gq, vc = "var(" + LV_VAR[g.v.c] + ")";
       body += '<div class="hexrow" style="margin-top:10px">' + hexCard("本卦", g.ben, g.mv) + hexCard("互卦", g.hu, 0) + hexCard("變卦", g.bian, 0) + '</div>' +
         '<dl class="kv" style="margin-top:12px">' +
         '<dt>上卦</dt><dd>' + TRI[g.ben.up].n + '（' + TRI[g.ben.up].nat + '，' + EL[TRI[g.ben.up].el] + '）</dd>' +
@@ -750,7 +797,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
         '<dt>體用判斷</dt><dd><span class="verdict" style="--vc:' + vc + '">' + g.v.t + '</span> ' + g.v.d + '</dd>' +
         '<dt>本卦 ' + g.ben.name + '</dt><dd>' + HINT[g.ben.name] + '</dd>' +
         '<dt>變卦 ' + g.bian.name + '</dt><dd>後續趨勢：' + HINT[g.bian.name] + '</dd></dl>' +
-        '<p class="note" style="margin:8px 0 0">依傳統梅花易數，以年支數加農曆月、農曆日起卦（上卦），再加時辰取開盤的巳時（下卦）；動爻由總數除以 6 取餘。卦象已計入氣象指數：體用吉凶 ±0.25，再加用卦與主題的生剋。</p>';
+        (isGuaMode() ? '<p class="note" style="margin:8px 0 0">個股卦：代號前半數加當日數（年支數、農曆月、農曆日）為上卦，後半數加當日數再加農曆日為下卦，動爻為總和除以 6 取餘，每天重新起卦，氣象直接取體用判斷。</p>' : '<p class="note" style="margin:8px 0 0">依傳統梅花易數，以年支數加農曆月、農曆日起卦（上卦），再加時辰取開盤的巳時（下卦）；動爻由總數除以 6 取餘。卦象已計入氣象指數：體用吉凶 ±0.25，再加用卦與主題的生剋。</p>');
     } else if (tab === "stk") {
       var chips = state.stocks.map(function (c) {
         return '<span class="chip" style="--c: var(--accent)"><button data-stock="' + c + '" aria-pressed="' + (state.stock === c) + '" style="border:0;background:transparent;padding:0;font-weight:' + (state.stock === c ? 700 : 400) + '">' + c + '</button><button class="x" data-rmstock="' + c + '" aria-label="移除 ' + c + '">×</button></span>';
@@ -772,7 +819,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
           '<dl class="kv" style="margin-top:10px"><dt>個股五行</dt><dd><span class="el-' + EL_CLS[se] + '">' + EL[se] + '</span>（尾數 ' + code.slice(-1) + '，河圖 ' + HETU[se] + '）</dd>' +
           '<dt>代號數根</dt><dd class="num">' + code.split("").join("+") + ' → ' + rt + '（洛書' + rtName + '宮，<span class="el-' + EL_CLS[LUO_EL[rt]] + '">' + EL[LUO_EL[rt]] + '</span>）</dd>' +
           '<dt>本月</dt><dd>' + LEVELS[mLv].k + ' · ' + LEVELS[mLv].sub + '（月平均 ' + (mAvg >= 0 ? "+" : "") + mAvg.toFixed(2) + '）</dd></dl>' +
-          '<div class="subh">個股卦象<span>本卦為本質，變卦隨日改變</span></div>' +
+          '<div class="subh">個股卦象<span>每天依代號與當日數重新起卦</span></div>' +
           '<div class="hexrow">' + hexCard("本卦", sg.ben, sg.mv) + hexCard("互卦", sg.hu, 0) + hexCard("今日變卦", sg.bian, 0) + '</div>' +
           '<dl class="kv" style="margin-top:10px"><dt>體用判斷</dt><dd><span class="verdict" style="--vc:' + svc + '">' + sg.v.t + '</span> ' + sg.v.d + '（體 ' + sg.ti.n + EL[sg.ti.el] + '，用 ' + sg.yong.n + EL[sg.yong.el] + '）</dd><dt>卦象貢獻</dt><dd class="num">' + sgn(sx.parts.gua) + '（個股自己的卦，不用大盤的卦）</dd>' +
           '<dt>本卦 ' + sg.ben.name + '</dt><dd>' + HINT[sg.ben.name] + '</dd><dt>變卦 ' + sg.bian.name + '</dt><dd>' + HINT[sg.bian.name] + '</dd></dl>' +
@@ -809,7 +856,7 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
       '<div class="sectionhead"><h3>' + o.y + '/' + o.m + '/' + o.d + '（週' + WD[x.dow] + '）' + (x.off ? " 休市" : "") + '</h3><span style="color:var(' + LV_VAR[x.lv] + ');font-weight:700">' + LEVELS[x.lv].k + ' · ' + LEVELS[x.lv].sub + '</span></div>' +
       '<div class="note">農曆 ' + GAN[(x.ln.ly - 4) % 10] + ZHI[(x.ln.ly - 4) % 12] + '年（' + SHENGXIAO[(x.ln.ly - 4) % 12] + '）' + lunarName(x.ln) + (moonPhase(x.ln.ld) ? ' · ' + moonPhase(x.ln.ld) : '') + (x.hol ? ' · ' + x.hol.name : '') + '</div>' +
       '<div class="note num">指數 ' + sgn(x.score) + (jie ? '（今日交 ' + jie + '）' : "") + '</div>' +
-      partsHTML(x.parts) +
+      (isGuaMode() ? '<div class="parts v1"><span class="part"><small>個股 ' + sec.code + ' 體用判斷</small><b style="color:var(' + LV_VAR[x.gq.v.c] + ')">' + x.gq.v.t + ' · ' + x.gq.v.d + '（' + x.gq.ben.name + ' → ' + x.gq.bian.name + '）</b></span></div>' : partsHTML(x.parts)) +
       '<div class="dtabs" role="group" aria-label="分析類別">' +
       [["gz", "干支五行"], ["yy", "陰陽"], ["gua", "卦象"], ["he", "河洛"], ["stk", "股市"]].map(function (t) { return '<button data-dtab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>' + body;
     enhanceCard($("detail")); enhanceSubs($("detail"));
@@ -837,9 +884,10 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
     if (state.view === "year") { var ym = []; for (var q = 1; q <= 12; q++) ym.push(monthDays(state.sel.y, q)); var yr = avgOfMonths(ym); pt = yr.parts; avg = yr.avg; }
     else { pt = avgParts(days); avg = avgDays(days); }
     var lv = level(avg), A = ALLOC[lv], L = LEVELS[lv];
+    var gv = isGuaMode() ? vcounts(days) : null;
     var drivers = PART_NAMES.map(function (k) { return { k: k[0], n: k[1], v: pt[k[0]] }; }).filter(function (d) { return Math.abs(d.v) >= 0.05; })
       .sort(function (a, b) { return Math.abs(b.v) - Math.abs(a.v); }).slice(0, 2);
-    var why = drivers.length ? drivers.map(function (d) { return PHRASE[d.k][d.v > 0 ? 0 : 1] + "（" + d.n + " " + sgn(d.v) + "）"; }).join("、") : "四部分都接近中性，沒有明顯的單一推力";
+    var why = gv ? '依個股 ' + sec.code + ' 的卦象體用判斷（吉 ' + gv[0] + '、小吉 ' + gv[1] + '、平 ' + gv[2] + '、小凶 ' + gv[3] + '、凶 ' + gv[4] + ' 天）' : drivers.length ? drivers.map(function (d) { return PHRASE[d.k][d.v > 0 ? 0 : 1] + "（" + d.n + " " + sgn(d.v) + "）"; }).join("、") : "四部分都接近中性，沒有明顯的單一推力";
     var asc = items.slice().sort(function (a, b) { return b.s - a.s; });
     var good = asc.slice(0, 3).filter(function (i) { return i.s >= 0.3; }), bad = asc.slice().reverse().slice(0, 3).filter(function (i) { return i.s <= -0.25; });
     var pick = function (arr, cls) { return arr.length ? arr.map(function (i) { return '<span class="' + cls + ' num">' + i.l + ' ' + sgn(i.s) + '</span>'; }).join("") : '<span>無明顯日子</span>'; };
@@ -916,21 +964,23 @@ svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
   function nextTarget() { return shifted(1); }
 
   /* ---------- 事件 ---------- */
-  function addStock() {
-    var el = $("stkIn"), v = (el && el.value || "").replace(/\D/g, "");
+  function afterStock() { save(); if (isGuaMode()) render(); else setDetail(state.sel); }
+  function addStock(inId) {
+    var el = $(inId || "stkIn"), v = (el && el.value || "").replace(/\D/g, "");
     if (v.length < 2) { if (el) { el.value = ""; el.placeholder = "請輸入 2 到 6 位數字"; el.focus(); } return; }
     if (state.stocks.indexOf(v) < 0) state.stocks.unshift(v);
-    state.stocks = state.stocks.slice(0, 8); state.stock = v; save(); setDetail(state.sel);
+    state.stocks = state.stocks.slice(0, 8); state.stock = v; afterStock();
   }
   document.addEventListener("keydown", function (e) {
-    if ((e.key === "Enter" || e.key === " ") && e.target && e.target.getAttribute && e.target.getAttribute("data-tg")) { e.preventDefault(); toggleHead(e.target); return; } if (e.key === "Enter" && e.target && e.target.id === "stkIn") { e.preventDefault(); addStock(); } });
+    if ((e.key === "Enter" || e.key === " ") && e.target && e.target.getAttribute && e.target.getAttribute("data-tg")) { e.preventDefault(); toggleHead(e.target); return; } if (e.key === "Enter" && e.target && (e.target.id === "stkIn" || e.target.id === "stkBarIn")) { e.preventDefault(); addStock(e.target.id); } });
   document.addEventListener("click", function (e) {
     var hd = e.target.closest("[data-tg]"); if (hd) { toggleHead(hd); return; }
     var b = e.target.closest("button"); if (!b) return;
     if (b.dataset.all) { setAll(b.dataset.all === "open"); return; }
-    if (b.id === "stkAdd") { addStock(); }
-    else if (b.dataset.stock) { state.stock = b.dataset.stock; save(); setDetail(state.sel); }
-    else if (b.dataset.rmstock) { state.stocks = state.stocks.filter(function (c) { return c !== b.dataset.rmstock; }); if (state.stock === b.dataset.rmstock) state.stock = state.stocks[0] || ""; save(); setDetail(state.sel); }
+    if (b.id === "stkAdd") { addStock("stkIn"); }
+    else if (b.id === "stkBarAdd") { addStock("stkBarIn"); }
+    else if (b.dataset.stock) { state.stock = b.dataset.stock; afterStock(); }
+    else if (b.dataset.rmstock) { state.stocks = state.stocks.filter(function (c) { return c !== b.dataset.rmstock; }); if (state.stock === b.dataset.rmstock) state.stock = state.stocks[0] || ""; afterStock(); }
     else if (b.dataset.dtab) { state.dtab = b.dataset.dtab; save(); setDetail(state.sel); }
     else if (b.dataset.view) { state.view = b.dataset.view; save(); render(); }
     else if (b.dataset.cal) { state.cal = b.dataset.cal; save(); render(); }
