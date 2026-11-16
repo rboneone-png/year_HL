@@ -36,17 +36,18 @@ jobs:
         env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: ./gradlew assembleDebug --no-daemon
+      - name: Rename APK with version
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk "heluo-invest-v1.0.${{ github.run_number }}.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: hl-invest-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk heluo-invest.apk
+          name: hl-invest-apk-v1.0.${{ github.run_number }}
+          path: heluo-invest-v1.0.${{ github.run_number }}.apk
       - name: Publish to Release (main only)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: 河洛數理投資 APK（最新）
-          body: 下載 heluo-invest.apk 後安裝（需允許安裝未知來源 App）。
-          files: heluo-invest.apk
+          tag_name: v1.0.${{ github.run_number }}
+          name: 河洛數理投資 v1.0.${{ github.run_number }}
+          body: 下載 heluo-invest-v1.0.${{ github.run_number }}.apk 後安裝（需允許安裝未知來源 App）。可直接覆蓋安裝舊版。
+          files: heluo-invest-v1.0.${{ github.run_number }}.apk
+          make_latest: true
